@@ -2,7 +2,7 @@
 
 集中勉強タイマー。写真がゆっくり流れる中で時間を計ります。
 
-**[→ デモを開く](https://your-username.github.io/photo-timer/)**
+**[→ デモを開く](https://gyeoul-s2.github.io/photo-timer/)**
 
 ---
 
