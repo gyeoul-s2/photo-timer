@@ -1,2 +1,44 @@
-# photo-timer
-A timer with a photo slideshow
+# 📸 Photo Flow Timer
+
+集中勉強タイマー。写真がゆっくり流れる中で時間を計ります。
+
+**[→ デモを開く](https://your-username.github.io/photo-timer/)**
+
+---
+
+## 使い方
+
+1. 写真をドロップまたは選択（フォルダーごとでもOK）
+2. タイマー時間を設定
+3. スタート
+
+---
+
+## 機能
+
+- **写真スライドショー** — ランダム順（連続重複なし）
+- **演出3種** — フェード / スライド / リバー（川のように流れる）
+- **タイマー** — 時・分・秒で設定、警告色あり
+- **タイマー音** — 終了ビープ / 残り10秒カウント / なし
+- **カスタマイズ** — フォントサイズ、色、透明度、位置、切替速度
+- **表示スタイル** — 全画面 / フレーム
+
+## ローカルで開く
+
+```bash
+# Python 3
+python -m http.server 8000
+# → http://localhost:8000
+```
+
+または `index.html` をブラウザで直接開く（`file://` でも動作します）。
+
+## GitHub Pages でホスト
+
+1. このリポジトリを fork またはクローン
+2. Settings → Pages → Source: `main` ブランチ `/ (root)`
+3. 数分後に `https://your-username.github.io/photo-timer/` で公開
+
+---
+
+写真はブラウザ内だけで処理されます。どこにもアップロードされません。

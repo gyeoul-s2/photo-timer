@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Flow Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --border: rgba(255,255,255,0.08);
+    --text: #e8e8e8;
+    --muted: #888;
+    --accent: #d4c5a9;
+    --font-ui: 'Inter', sans-serif;
+    --font-timer: 'JetBrains Mono', monospace;
+    --timer-size: 5rem;
+    --photo-interval: 8;
+    --transition-duration: 1.2s;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── PHOTO CANVAS ── */
+  #photo-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .photo-slot {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+  }
+
+  /* Display style: fullscreen vs framed */
+  body.framed .photo-slot {
+    inset: 40px;
+    border-radius: 4px;
+  }
+
+  /* Transition: fade */
+  body.transition-fade .photo-slot.active {
+    opacity: 1;
+    transition: opacity var(--transition-duration) ease;
+  }
+  body.transition-fade .photo-slot.leaving {
+    opacity: 0;
+    transition: opacity var(--transition-duration) ease;
+  }
+
+  /* Transition: slide */
+  body.transition-slide .photo-slot {
+    transform: translateX(100%);
+    transition: transform var(--transition-duration) cubic-bezier(0.4,0,0.2,1), opacity 0s;
+  }
+  body.transition-slide .photo-slot.active {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  body.transition-slide .photo-slot.leaving {
+    opacity: 1;
+    transform: translateX(-100%);
+    transition: transform var(--transition-duration) cubic-bezier(0.4,0,0.2,1);
+  }
+
+  /* Transition: river (drift from right, slow parallax) */
+  body.transition-river .photo-slot {
+    opacity: 0;
+    background-size: 130%;
+    background-position: 120% center;
+    transition: background-position calc(var(--transition-duration) * 8) linear, opacity var(--transition-duration) ease;
+  }
+  body.transition-river .photo-slot.active {
+    opacity: 1;
+    background-position: 50% center;
+  }
+  body.transition-river .photo-slot.leaving {
+    opacity: 0;
+    transition: opacity var(--transition-duration) ease;
+  }
+
+  /* ── OVERLAY (keeps UI readable) ── */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── TIMER DISPLAY ── */
+  #timer-display {
+    position: fixed;
+    z-index: 10;
+    font-family: var(--font-timer);
+    font-size: var(--timer-size);
+    font-weight: 400;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+    transition: color 0.3s;
+    pointer-events: none;
+  }
+
+  #timer-display.warning { color: #e8c99a; }
+  #timer-display.urgent  { color: #e89a9a; }
+
+  /* Timer positions */
+  body.pos-center #timer-display { top: 50%; left: 50%; transform: translate(-50%,-50%); }
+  body.pos-bottom-right #timer-display { bottom: 2rem; right: 2.5rem; }
+  body.pos-bottom-left #timer-display { bottom: 2rem; left: 2.5rem; }
+  body.pos-top-right #timer-display { top: 2rem; right: 2.5rem; }
+
+  /* ── CONTROLS PANEL ── */
+  #controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    transition: opacity 0.4s, transform 0.4s;
+  }
+
+  #controls.hidden {
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+  }
+
+  .btn {
+    background: rgba(255,255,255,0.07);
+    border: 0.5px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: rgba(255,255,255,0.13); }
+  .btn.primary {
+    background: var(--accent);
+    color: #1a1a1a;
+    border-color: transparent;
+    font-weight: 500;
+  }
+  .btn.primary:hover { background: #c4b599; }
+  .btn.danger { background: rgba(232,154,154,0.15); border-color: rgba(232,154,154,0.3); color: #e89a9a; }
+
+  .ctrl-left, .ctrl-right { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+  /* ── SETUP SCREEN ── */
+  #setup {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  #setup.hidden { display: none; }
+
+  .setup-card {
+    width: 100%;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .setup-title {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .setup-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.2rem;
+    line-height: 1.5;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 0.5rem; }
+  .label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  input[type="file"] { display: none; }
+
+  .file-drop {
+    border: 1px dashed rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .file-drop:hover, .file-drop.drag { border-color: var(--accent); background: rgba(212,197,169,0.05); }
+  .file-drop .count { color: var(--accent); font-weight: 500; font-size: 1rem; margin-top: 0.3rem; }
+
+  input[type="number"], input[type="text"], select {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 6px;
+    outline: none;
+    width: 100%;
+  }
+  input[type="number"]:focus, select:focus { border-color: rgba(212,197,169,0.4); }
+
+  .seg { display: flex; gap: 0; }
+  .seg .btn {
+    border-radius: 0;
+    border-right-width: 0;
+    font-size: 0.78rem;
+  }
+  .seg .btn:first-child { border-radius: 6px 0 0 6px; }
+  .seg .btn:last-child  { border-radius: 0 6px 6px 0; border-right-width: 0.5px; }
+  .seg .btn.active { background: rgba(212,197,169,0.18); border-color: rgba(212,197,169,0.4); color: var(--accent); }
+
+  .time-inputs { display: flex; gap: 0.4rem; align-items: center; }
+  .time-inputs input { text-align: center; width: 56px; }
+  .time-sep { color: var(--muted); font-size: 1.1rem; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+  /* ── SETTINGS PANEL ── */
+  #settings-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 50;
+    background: rgba(15,15,15,0.97);
+    border-left: 0.5px solid var(--border);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto;
+  }
+  #settings-panel.open { transform: translateX(0); }
+
+  .panel-title { font-size: 0.8rem; font-weight: 500; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+  .range-row { display: flex; gap: 0.6rem; align-items: center; }
+  .range-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .range-val { font-size: 0.78rem; color: var(--muted); min-width: 28px; text-align: right; }
+
+  /* ── PROGRESS BAR ── */
+  #progress {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    z-index: 15;
+    background: rgba(255,255,255,0.06);
+  }
+  #progress-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 1s linear;
+    width: 0%;
+  }
+
+  /* ── PHOTO COUNTER ── */
+  #photo-info {
+    position: fixed;
+    top: 1rem;
+    left: 1.5rem;
+    z-index: 10;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.3);
+    font-family: var(--font-timer);
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+
+  /* ── DONE OVERLAY ── */
+  #done-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+  }
+  #done-overlay.show { opacity: 1; pointer-events: all; }
+  #done-overlay h2 { font-size: 1.4rem; font-weight: 400; color: var(--text); }
+  #done-overlay p  { font-size: 0.85rem; color: var(--muted); }
+
+  /* misc */
+  hr { border: none; border-top: 0.5px solid var(--border); }
+</style>
+</head>
+<body class="pos-bottom-right transition-fade">
+
+<!-- Setup Screen -->
+<div id="setup">
+  <div class="setup-card">
+    <div>
+      <div class="setup-title">Photo Flow Timer</div>
+      <div class="setup-sub">写真をアップロードして、集中タイマーをスタートしましょう。</div>
+    </div>
+
+    <div class="field">
+      <div class="label">写真を選ぶ</div>
+      <label class="file-drop" id="drop-zone">
+        <input type="file" id="file-input" multiple accept="image/*">
+        <div>フォルダやファイルをここにドロップ</div>
+        <div>または クリックして選択</div>
+        <div class="count" id="file-count"></div>
+      </label>
+    </div>
+
+    <div class="field">
+      <div class="label">タイマー時間</div>
+      <div class="time-inputs">
+        <input type="number" id="t-hours" value="0" min="0" max="23" placeholder="時">
+        <span class="time-sep">:</span>
+        <input type="number" id="t-minutes" value="25" min="0" max="59" placeholder="分">
+        <span class="time-sep">:</span>
+        <input type="number" id="t-seconds" value="0" min="0" max="59" placeholder="秒">
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <div class="label">写真の切替（秒）</div>
+        <input type="number" id="interval-input" value="8" min="3" max="60">
+      </div>
+      <div class="field">
+        <div class="label">演出</div>
+        <select id="transition-select">
+          <option value="fade">フェード</option>
+          <option value="slide">スライド</option>
+          <option value="river">リバー（川）</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="label">表示スタイル</div>
+        <select id="display-select">
+          <option value="">全画面</option>
+          <option value="framed">フレーム</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="label">タイマー位置</div>
+        <select id="pos-select">
+          <option value="pos-bottom-right">右下</option>
+          <option value="pos-bottom-left">左下</option>
+          <option value="pos-top-right">右上</option>
+          <option value="pos-center">中央</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">タイマー音</div>
+      <div class="seg" id="sound-seg">
+        <button class="btn active" data-v="end-only">終了のみ</button>
+        <button class="btn" data-v="countdown">残り10秒カウント</button>
+        <button class="btn" data-v="none">なし</button>
+      </div>
+    </div>
+
+    <button class="btn primary" id="start-btn" onclick="startTimer()">スタート →</button>
+  </div>
+</div>
+
+<!-- Photo Canvas -->
+<div id="photo-canvas">
+  <div class="photo-slot" id="slot-a"></div>
+  <div class="photo-slot" id="slot-b"></div>
+</div>
+
+<!-- Overlay gradient -->
+<div id="overlay"></div>
+
+<!-- Progress bar -->
+<div id="progress"><div id="progress-fill"></div></div>
+
+<!-- Photo counter -->
+<div id="photo-info"></div>
+
+<!-- Timer Display -->
+<div id="timer-display">00:00</div>
+
+<!-- Bottom Controls -->
+<div id="controls" class="hidden">
+  <div class="ctrl-left">
+    <button class="btn" onclick="togglePause()" id="pause-btn">一時停止</button>
+    <button class="btn" onclick="skipPhoto()">次の写真 →</button>
+  </div>
+  <div class="ctrl-right">
+    <button class="btn" onclick="openSettings()">⚙ 設定</button>
+    <button class="btn danger" onclick="resetAll()">終了</button>
+  </div>
+</div>
+
+<!-- Settings Panel -->
+<div id="settings-panel">
+  <div class="panel-title">設定</div>
+
+  <div class="field">
+    <div class="label">タイマーフォントサイズ</div>
+    <div class="range-row">
+      <input type="range" min="2" max="12" step="0.5" value="5" id="font-size-range" oninput="updateFontSize(this.value)">
+      <span class="range-val" id="font-size-val">5rem</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="label">タイマー透明度</div>
+    <div class="range-row">
+      <input type="range" min="0.2" max="1" step="0.05" value="1" id="opacity-range" oninput="updateOpacity(this.value)">
+      <span class="range-val" id="opacity-val">100%</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="label">タイマーカラー</div>
+    <div class="row">
+      <button class="btn" onclick="setTimerColor('#e8e8e8')" style="background:#e8e8e8;color:#111;min-width:36px">白</button>
+      <button class="btn" onclick="setTimerColor('#d4c5a9')" style="background:#d4c5a9;color:#111;min-width:36px">ベージュ</button>
+      <button class="btn" onclick="setTimerColor('#a9c4d4')" style="background:#a9c4d4;color:#111;min-width:36px">青</button>
+      <button class="btn" onclick="setTimerColor('#a9d4b5')" style="background:#a9d4b5;color:#111;min-width:36px">緑</button>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="field">
+    <div class="label">演出</div>
+    <select onchange="setTransition(this.value)">
+      <option value="fade">フェード</option>
+      <option value="slide">スライド</option>
+      <option value="river">リバー（川）</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <div class="label">写真の切替（秒）</div>
+    <input type="number" min="3" max="60" value="8" id="interval-live" onchange="updateInterval(this.value)">
+  </div>
+
+  <div class="field">
+    <div class="label">表示スタイル</div>
+    <select onchange="setDisplayStyle(this.value)">
+      <option value="">全画面</option>
+      <option value="framed">フレーム</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <div class="label">タイマー位置</div>
+    <select onchange="setPos(this.value)">
+      <option value="pos-bottom-right">右下</option>
+      <option value="pos-bottom-left">左下</option>
+      <option value="pos-top-right">右上</option>
+      <option value="pos-center">中央</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <div class="label">タイマー音</div>
+    <div class="seg" id="sound-seg-live">
+      <button class="btn active" data-v="end-only">終了のみ</button>
+      <button class="btn" data-v="countdown">カウント</button>
+      <button class="btn" data-v="none">なし</button>
+    </div>
+  </div>
+
+  <hr>
+  <button class="btn" onclick="closeSettings()">閉じる</button>
+</div>
+
+<!-- Done Overlay -->
+<div id="done-overlay">
+  <h2>⏱ タイマー終了</h2>
+  <p>集中お疲れさまでした。</p>
+  <div style="display:flex;gap:0.75rem">
+    <button class="btn primary" onclick="resetAll()">最初から</button>
+    <button class="btn" onclick="closeDone()">続ける</button>
+  </div>
+</div>
+
+<script>
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function beep(freq = 880, dur = 0.12, vol = 0.4, delay = 0) {
+  const ctx = getAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.frequency.value = freq;
+  osc.type = 'sine';
+  const t = ctx.currentTime + delay;
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+
+function doneSound() {
+  beep(523, 0.15, 0.5, 0);
+  beep(659, 0.15, 0.5, 0.18);
+  beep(784, 0.25, 0.5, 0.36);
+}
+
+function tickSound() { beep(440, 0.05, 0.25); }
+
+// ── State ──
+let photos = [];
+let photoIndex = 0;
+let totalSeconds = 0;
+let remainingSeconds = 0;
+let timerInterval = null;
+let photoInterval = null;
+let isPaused = false;
+let soundMode = 'end-only';
+let currentSlot = 'a';
+let usedIndices = [];
+
+// ── File Input ──
+const fileInput = document.getElementById('file-input');
+const dropZone  = document.getElementById('drop-zone');
+const fileCount = document.getElementById('file-count');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  loadFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => loadFiles([...fileInput.files]));
+
+function loadFiles(files) {
+  const imgs = files.filter(f => f.type.startsWith('image/'));
+  if (!imgs.length) return;
+  photos = imgs.map(f => URL.createObjectURL(f));
+  fileCount.textContent = `${photos.length} 枚の写真を読み込みました`;
+}
+
+// Segmented buttons
+document.querySelectorAll('.seg').forEach(seg => {
+  seg.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      seg.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (seg.id === 'sound-seg' || seg.id === 'sound-seg-live') soundMode = btn.dataset.v;
+    });
+  });
+});
+
+// ── Start ──
+function startTimer() {
+  if (!photos.length) { alert('写真を選んでください。'); return; }
+
+  const h = parseInt(document.getElementById('t-hours').value) || 0;
+  const m = parseInt(document.getElementById('t-minutes').value) || 0;
+  const s = parseInt(document.getElementById('t-seconds').value) || 0;
+  totalSeconds = h * 3600 + m * 60 + s;
+  if (totalSeconds <= 0) { alert('タイマーの時間を設定してください。'); return; }
+
+  const interval = parseInt(document.getElementById('interval-input').value) || 8;
+  document.documentElement.style.setProperty('--photo-interval', interval);
+  document.getElementById('interval-live').value = interval;
+
+  const trans  = document.getElementById('transition-select').value;
+  const disp   = document.getElementById('display-select').value;
+  const pos    = document.getElementById('pos-select').value;
+
+  setTransition(trans);
+  setDisplayStyle(disp);
+  setPos(pos);
+
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('controls').classList.remove('hidden');
+
+  remainingSeconds = totalSeconds;
+  isPaused = false;
+  usedIndices = [];
+
+  updateTimerDisplay();
+  showNextPhoto();
+  startPhotoLoop(interval);
+  startCountdown();
+}
+
+// ── Timer ──
+function startCountdown() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (isPaused) return;
+    remainingSeconds--;
+    updateTimerDisplay();
+    updateProgress();
+    if (soundMode === 'countdown' && remainingSeconds <= 10 && remainingSeconds > 0) tickSound();
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      clearInterval(photoInterval);
+      if (soundMode !== 'none') doneSound();
+      document.getElementById('done-overlay').classList.add('show');
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const disp = document.getElementById('timer-display');
+  const h = Math.floor(remainingSeconds / 3600);
+  const m = Math.floor((remainingSeconds % 3600) / 60);
+  const s = remainingSeconds % 60;
+  disp.textContent = h > 0
+    ? `${pad(h)}:${pad(m)}:${pad(s)}`
+    : `${pad(m)}:${pad(s)}`;
+  disp.className = '';
+  if (remainingSeconds <= 60) disp.classList.add('warning');
+  if (remainingSeconds <= 10) disp.classList.add('urgent');
+}
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function updateProgress() {
+  const pct = ((totalSeconds - remainingSeconds) / totalSeconds) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+// ── Photo Logic ──
+function pickNextIndex() {
+  if (usedIndices.length >= photos.length) usedIndices = [];
+  const available = photos.map((_,i) => i).filter(i => !usedIndices.includes(i));
+  const idx = available[Math.floor(Math.random() * available.length)];
+  usedIndices.push(idx);
+  return idx;
+}
+
+function showNextPhoto() {
+  const idx = pickNextIndex();
+  const nextSlot = currentSlot === 'a' ? 'b' : 'a';
+  const slotEl = document.getElementById('slot-' + nextSlot);
+  const oldEl  = document.getElementById('slot-' + currentSlot);
+
+  slotEl.style.backgroundImage = `url("${photos[idx]}")`;
+  slotEl.classList.remove('leaving', 'active');
+  void slotEl.offsetWidth;
+
+  oldEl.classList.remove('active');
+  oldEl.classList.add('leaving');
+  slotEl.classList.add('active');
+
+  setTimeout(() => { oldEl.classList.remove('leaving'); }, 1500);
+
+  currentSlot = nextSlot;
+  photoIndex = usedIndices.length;
+  document.getElementById('photo-info').textContent = `${photoIndex} / ${photos.length}`;
+}
+
+function startPhotoLoop(interval) {
+  clearInterval(photoInterval);
+  photoInterval = setInterval(() => { if (!isPaused) showNextPhoto(); }, interval * 1000);
+}
+
+function skipPhoto() {
+  showNextPhoto();
+  clearInterval(photoInterval);
+  const interval = parseInt(document.getElementById('interval-live').value) || 8;
+  startPhotoLoop(interval);
+}
+
+// ── Pause ──
+function togglePause() {
+  isPaused = !isPaused;
+  document.getElementById('pause-btn').textContent = isPaused ? '再開' : '一時停止';
+}
+
+// ── Settings ──
+function openSettings()  { document.getElementById('settings-panel').classList.add('open'); }
+function closeSettings() { document.getElementById('settings-panel').classList.remove('open'); }
+
+function updateFontSize(v) {
+  document.documentElement.style.setProperty('--timer-size', v + 'rem');
+  document.getElementById('font-size-val').textContent = v + 'rem';
+}
+
+function updateOpacity(v) {
+  document.getElementById('timer-display').style.opacity = v;
+  document.getElementById('opacity-val').textContent = Math.round(v * 100) + '%';
+}
+
+function setTimerColor(c) {
+  document.getElementById('timer-display').style.color = c;
+}
+
+function setTransition(v) {
+  document.body.classList.remove('transition-fade','transition-slide','transition-river');
+  document.body.classList.add('transition-' + v);
+}
+
+function setDisplayStyle(v) {
+  document.body.classList.remove('framed');
+  if (v === 'framed') document.body.classList.add('framed');
+}
+
+function setPos(v) {
+  document.body.classList.remove('pos-center','pos-bottom-right','pos-bottom-left','pos-top-right');
+  document.body.classList.add(v);
+}
+
+function updateInterval(v) {
+  document.documentElement.style.setProperty('--photo-interval', v);
+  clearInterval(photoInterval);
+  startPhotoLoop(parseInt(v));
+}
+
+// ── Controls visibility on mouse move ──
+let hideTimeout;
+document.addEventListener('mousemove', () => {
+  const c = document.getElementById('controls');
+  c.classList.remove('hidden');
+  clearTimeout(hideTimeout);
+  if (!document.getElementById('settings-panel').classList.contains('open')) {
+    hideTimeout = setTimeout(() => c.classList.add('hidden'), 3000);
+  }
+});
+
+// ── Done / Reset ──
+function closeDone() { document.getElementById('done-overlay').classList.remove('show'); }
+
+function resetAll() {
+  clearInterval(timerInterval);
+  clearInterval(photoInterval);
+  document.getElementById('done-overlay').classList.remove('show');
+  document.getElementById('controls').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+  document.getElementById('slot-a').style.backgroundImage = '';
+  document.getElementById('slot-b').style.backgroundImage = '';
+  document.getElementById('slot-a').className = 'photo-slot';
+  document.getElementById('slot-b').className = 'photo-slot';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('timer-display').textContent = '00:00';
+  isPaused = false;
+  remainingSeconds = 0;
+}
+</script>
+</body>
+</html>
