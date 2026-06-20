@@ -32,13 +32,3 @@ python -m http.server 8000
 ```
 
 または `index.html` をブラウザで直接開く（`file://` でも動作します）。
-
-## GitHub Pages でホスト
-
-1. このリポジトリを fork またはクローン
-2. Settings → Pages → Source: `main` ブランチ `/ (root)`
-3. 数分後に `https://your-username.github.io/photo-timer/` で公開
-
----
-
-写真はブラウザ内だけで処理されます。どこにもアップロードされません。
