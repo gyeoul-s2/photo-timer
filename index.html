@@ -7,342 +7,365 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&family=Space+Mono:wght@400;700&family=Bebas+Neue&family=Playfair+Display:wght@400;700&family=Oswald:wght@300;400&family=DM+Serif+Display&family=Rajdhani:wght@300;500&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg: #0f0f0f;
-  --surface: #1c1c1c;
-  --border: rgba(255,255,255,0.08);
-  --text: #e8e8e8;
-  --muted: #777;
-  --accent: #d4c5a9;
-  --font-ui: 'Inter', sans-serif;
-  --timer-size: 5rem;
-  --overlay-color: 0,0,0;
-  --overlay-opacity: 0.35;
-  --transition-duration: 1.2s;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f0f0f;--surface:#181818;--surface2:#222;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e2e2e2;--muted:#666;--accent:#c8b99a;
+  --font-ui:'Inter',sans-serif;
+  --timer-size:5rem;--overlay-color:0,0,0;--overlay-opacity:0.35;
+  --alarm-sub-size:1.1rem;--alarm-sub-color:#aaaaaa;
 }
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100vh;overflow:hidden;user-select:none}
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-ui);
-  min-height: 100vh;
-  overflow: hidden;
-  user-select: none;
+/* ── PHOTO CANVAS ── */
+#photo-canvas{position:fixed;inset:0;z-index:0;transition:opacity .6s}
+.photo-slot{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0}
+body.framed .photo-slot{inset:36px;border-radius:8px}
+
+/* transitions */
+body.t-none     .photo-slot.active{opacity:1}
+body.t-none     .photo-slot.leaving{opacity:0}
+body.t-fade     .photo-slot.active{opacity:1;transition:opacity 1.2s ease}
+body.t-fade     .photo-slot.leaving{opacity:0;transition:opacity 1.2s ease}
+body.t-dissolve .photo-slot.active{opacity:1;transition:opacity 1.8s ease}
+body.t-dissolve .photo-slot.leaving{opacity:0;transition:opacity 1.8s ease}
+body.t-slide    .photo-slot{transform:translateX(100%);transition:transform 1s cubic-bezier(.4,0,.2,1),opacity 0s}
+body.t-slide    .photo-slot.active{opacity:1;transform:translateX(0)}
+body.t-slide    .photo-slot.leaving{opacity:1;transform:translateX(-100%);transition:transform 1s cubic-bezier(.4,0,.2,1)}
+body.t-drift    .photo-slot{opacity:0;background-size:130%;background-position:120% center;transition:background-position 9s linear,opacity 1.2s ease}
+body.t-drift    .photo-slot.active{opacity:1;background-position:50% center}
+body.t-drift    .photo-slot.leaving{opacity:0;transition:opacity 1.2s ease}
+body.t-kenburns .photo-slot{opacity:0}
+body.t-kenburns .photo-slot.active{opacity:1;transition:opacity 1.5s ease;animation:kb 12s ease-in-out forwards}
+body.t-kenburns .photo-slot.leaving{opacity:0;transition:opacity 1.2s ease;animation:none}
+@keyframes kb{0%{transform:scale(1) translate(0,0)}50%{transform:scale(1.07) translate(-1%,.5%)}100%{transform:scale(1.05) translate(1%,-.5%)}}
+body.t-zoomout  .photo-slot{opacity:0;transform:scale(1.16)}
+body.t-zoomout  .photo-slot.active{opacity:1;transform:scale(1);transition:opacity 1s ease,transform 1.4s ease}
+body.t-zoomout  .photo-slot.leaving{opacity:0;transition:opacity 1s ease}
+body.t-flip{perspective:1200px}
+body.t-flip     .photo-slot{opacity:0;transform:rotateY(90deg)}
+body.t-flip     .photo-slot.active{opacity:1;transform:rotateY(0deg);transition:opacity .1s,transform .7s cubic-bezier(.4,0,.2,1)}
+body.t-flip     .photo-slot.leaving{opacity:0;transform:rotateY(-90deg);transition:opacity .1s .6s,transform .7s cubic-bezier(.4,0,.2,1)}
+body.t-blur     .photo-slot{opacity:0;filter:blur(16px)}
+body.t-blur     .photo-slot.active{opacity:1;filter:blur(0);transition:opacity 1s ease,filter 1.2s ease}
+body.t-blur     .photo-slot.leaving{opacity:0;filter:blur(16px);transition:opacity 1s ease,filter 1.2s ease}
+body.t-glitch   .photo-slot.active{opacity:1;animation:glitch-in .5s steps(2) forwards}
+body.t-glitch   .photo-slot.leaving{opacity:0}
+@keyframes glitch-in{0%{opacity:0;clip-path:inset(0 0 100% 0)}25%{opacity:.8;clip-path:inset(30% 0 40% 0)}50%{opacity:.5;clip-path:inset(60% 0 10% 0)}75%{opacity:.9;clip-path:inset(5% 0 55% 0)}100%{opacity:1;clip-path:inset(0)}}
+
+/* ── OVERLAYS ── */
+#photo-overlay{position:fixed;inset:0;z-index:1;background:rgba(var(--overlay-color),var(--overlay-opacity));pointer-events:none}
+#grad{position:fixed;inset:0;z-index:2;background:linear-gradient(to top,rgba(0,0,0,.5) 0%,transparent 44%);pointer-events:none}
+
+/* ── TIMER ── */
+#timer-display{position:fixed;z-index:10;font-size:var(--timer-size);font-weight:400;color:#e2e2e2;line-height:1;pointer-events:none;text-shadow:0 2px 18px rgba(0,0,0,.65);font-family:'JetBrains Mono',monospace;letter-spacing:-.02em}
+.font-mono    {font-family:'JetBrains Mono',monospace!important;letter-spacing:-.02em!important}
+.font-space   {font-family:'Space Mono',monospace!important;letter-spacing:-.03em!important}
+.font-bebas   {font-family:'Bebas Neue',sans-serif!important;letter-spacing:.06em!important}
+.font-playfair{font-family:'Playfair Display',serif!important;letter-spacing:.01em!important}
+.font-oswald  {font-family:'Oswald',sans-serif!important;font-weight:300!important;letter-spacing:.09em!important}
+.font-dm      {font-family:'DM Serif Display',serif!important}
+.font-rajdhani{font-family:'Rajdhani',sans-serif!important;font-weight:300!important;letter-spacing:.14em!important}
+#timer-display.warning{color:#e8c99a!important}
+#timer-display.urgent {color:#e89a9a!important}
+body.pos-center       #timer-display{top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+body.pos-bottom-right #timer-display{bottom:2rem;right:2.5rem}
+body.pos-bottom-left  #timer-display{bottom:2rem;left:2.5rem}
+body.pos-top-right    #timer-display{top:2rem;right:2.5rem}
+body.pos-top-left     #timer-display{top:2rem;left:2.5rem}
+
+/* ── ALARM SUBTITLE (countdown/remaining) ── */
+#alarm-sub{
+  position:fixed;z-index:10;pointer-events:none;
+  font-size:var(--alarm-sub-size);color:var(--alarm-sub-color);
+  font-family:'JetBrains Mono',monospace;letter-spacing:.06em;
+  display:none;
+  text-shadow:0 1px 8px rgba(0,0,0,.6);
 }
+/* follows timer position */
+body.pos-center       #alarm-sub{top:calc(50% + var(--timer-size) * 1.1);left:50%;transform:translateX(-50%);text-align:center}
+body.pos-bottom-right #alarm-sub{bottom:calc(2rem - 1.6rem);right:2.5rem}
+body.pos-bottom-left  #alarm-sub{bottom:calc(2rem - 1.6rem);left:2.5rem}
+body.pos-top-right    #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);right:2.5rem}
+body.pos-top-left     #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);left:2.5rem}
 
-/* ─── PHOTO CANVAS ─── */
-#photo-canvas { position: fixed; inset: 0; z-index: 0; }
-.photo-slot {
-  position: absolute; inset: 0;
-  background-size: cover; background-position: center;
-  opacity: 0;
+/* ── POMO BADGE ── */
+#pomo-badge{position:fixed;top:1rem;right:1.5rem;z-index:10;font-size:.66rem;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;pointer-events:none;display:none}
+#pomo-badge.focus{color:rgba(200,185,154,.65)}
+#pomo-badge.break{color:rgba(154,200,170,.65)}
+
+/* ── PHOTO COUNTER ── */
+#photo-info{position:fixed;top:1rem;left:1.5rem;z-index:10;font-size:.66rem;color:rgba(255,255,255,.25);font-family:'JetBrains Mono',monospace;pointer-events:none}
+
+/* ── PROGRESS ── */
+#progress{position:fixed;top:0;left:0;right:0;height:1.5px;z-index:15;background:rgba(255,255,255,.05)}
+#progress-fill{height:100%;background:var(--accent);width:0%;transition:width 1s linear}
+
+/* ── PiP OVERLAY on main tab ── */
+#pip-overlay{
+  display:none;position:fixed;inset:0;z-index:8;
+  background:#0a0a0a;
+  flex-direction:column;align-items:center;justify-content:center;gap:2.4rem;
 }
-body.framed .photo-slot { inset: 40px; border-radius: 6px; }
+#pip-overlay.show{display:flex}
 
-/* Transitions */
-body.transition-fade .photo-slot.active  { opacity:1; transition:opacity var(--transition-duration) ease; }
-body.transition-fade .photo-slot.leaving { opacity:0; transition:opacity var(--transition-duration) ease; }
+/* PiP: playback controls row */
+#pip-playback{display:flex;gap:.55rem;align-items:center}
 
-body.transition-slide .photo-slot { transform:translateX(100%); transition:transform var(--transition-duration) cubic-bezier(.4,0,.2,1),opacity 0s; }
-body.transition-slide .photo-slot.active  { opacity:1; transform:translateX(0); }
-body.transition-slide .photo-slot.leaving { opacity:1; transform:translateX(-100%); transition:transform var(--transition-duration) cubic-bezier(.4,0,.2,1); }
-
-body.transition-river .photo-slot { opacity:0; background-size:130%; background-position:120% center; transition:background-position calc(var(--transition-duration)*8) linear, opacity var(--transition-duration) ease; }
-body.transition-river .photo-slot.active  { opacity:1; background-position:50% center; }
-body.transition-river .photo-slot.leaving { opacity:0; transition:opacity var(--transition-duration) ease; }
-
-/* ─── OVERLAYS ─── */
-#photo-overlay {
-  position:fixed; inset:0; z-index:1;
-  background: rgba(var(--overlay-color), var(--overlay-opacity));
-  pointer-events:none;
+/* PiP: large icon buttons */
+.pip-icon-btn{
+  background:none;border:none;color:rgba(255,255,255,.35);
+  cursor:pointer;padding:.5rem;border-radius:8px;
+  transition:color .15s,background .15s;
+  display:flex;align-items:center;justify-content:center;
 }
-#gradient-overlay {
-  position:fixed; inset:0; z-index:2;
-  background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 45%);
-  pointer-events:none;
+.pip-icon-btn:hover{color:var(--text);background:rgba(255,255,255,.07)}
+.pip-icon-btn.close-btn{color:rgba(200,185,154,.5)}
+.pip-icon-btn.close-btn:hover{color:var(--accent);background:rgba(200,185,154,.08)}
+
+/* PiP settings grid */
+#pip-settings-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1.4rem;
+  width:280px;
 }
+.pip-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.pip-row-lbl{font-size:.65rem;color:var(--muted);letter-spacing:.05em;white-space:nowrap}
+.pip-row select{background:var(--surface2);border:.5px solid var(--border);color:var(--text);font-family:var(--font-ui);font-size:.7rem;padding:.24rem .4rem;border-radius:5px;outline:none;flex-shrink:0}
+.pip-row select:focus{border-color:rgba(200,185,154,.4)}
+.pip-row input[type="range"]{accent-color:var(--accent);width:72px;flex-shrink:0}
 
-/* ─── TIMER ─── */
-#timer-display {
-  position: fixed;
-  z-index: 10;
-  font-size: var(--timer-size);
-  font-weight: 400;
-  color: #e8e8e8;
-  line-height: 1;
-  pointer-events: none;
-  text-shadow: 0 2px 16px rgba(0,0,0,0.6);
-  /* font set by class below */
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: -0.02em;
-}
-.font-mono     { font-family:'JetBrains Mono',monospace !important; font-weight:400; letter-spacing:-0.02em !important; }
-.font-space    { font-family:'Space Mono',monospace !important;     font-weight:400; letter-spacing:-0.03em !important; }
-.font-bebas    { font-family:'Bebas Neue',sans-serif !important;    font-weight:400; letter-spacing:0.06em !important; }
-.font-playfair { font-family:'Playfair Display',serif !important;   font-weight:400; letter-spacing:0.01em !important; }
-.font-oswald   { font-family:'Oswald',sans-serif !important;        font-weight:300; letter-spacing:0.09em !important; }
-.font-dm       { font-family:'DM Serif Display',serif !important;   font-weight:400; letter-spacing:0em !important; }
-.font-rajdhani { font-family:'Rajdhani',sans-serif !important;      font-weight:300; letter-spacing:0.14em !important; }
+#pip-hint{font-size:.6rem;color:rgba(255,255,255,.16);letter-spacing:.06em;text-align:center}
 
-#timer-display.warning { color: #e8c99a !important; }
-#timer-display.urgent  { color: #e89a9a !important; }
+/* ── CONTROLS ── */
+#controls{position:fixed;bottom:0;left:0;right:0;z-index:20;padding:.9rem 1.4rem 1.5rem;display:flex;align-items:flex-end;justify-content:space-between;gap:.6rem;transition:opacity .4s,transform .4s}
+#controls.hidden{opacity:0;transform:translateY(10px);pointer-events:none}
+.cg{display:flex;gap:.38rem;align-items:center;flex-wrap:wrap}
 
-body.pos-center       #timer-display { top:50%;  left:50%;  transform:translate(-50%,-50%); text-align:center; }
-body.pos-bottom-right #timer-display { bottom:2rem; right:2.5rem; }
-body.pos-bottom-left  #timer-display { bottom:2rem; left:2.5rem; }
-body.pos-top-right    #timer-display { top:2rem;    right:2.5rem; }
-body.pos-top-left     #timer-display { top:2rem;    left:2.5rem; }
+/* ── BUTTON ── */
+.btn{background:rgba(255,255,255,.065);border:.5px solid var(--border2);color:var(--text);font-family:var(--font-ui);font-size:.75rem;padding:.4rem .8rem;border-radius:7px;cursor:pointer;transition:background .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:.32rem}
+.btn svg{flex-shrink:0}
+.btn:hover{background:rgba(255,255,255,.12)}
+.btn.primary{background:var(--accent);color:#161616;border-color:transparent;font-weight:500}
+.btn.primary:hover{background:#b8a98a}
+.btn.danger{background:rgba(220,140,140,.1);border-color:rgba(220,140,140,.25);color:#e09090}
+.btn.on{background:rgba(200,185,154,.15);border-color:rgba(200,185,154,.35);color:var(--accent)}
+.btn.soft-green{background:rgba(154,200,170,.12);border-color:rgba(154,200,170,.28);color:#9dc8aa}
 
-/* ─── PROGRESS ─── */
-#progress { position:fixed; top:0; left:0; right:0; height:2px; z-index:15; background:rgba(255,255,255,0.06); }
-#progress-fill { height:100%; background:var(--accent); width:0%; transition:width 1s linear; }
+/* ── SETUP ── */
+#setup{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:2rem;overflow-y:auto}
+#setup.hidden{display:none}
+.setup-card{width:100%;max-width:560px;display:flex;flex-direction:column;gap:0;padding:.5rem 0}
+.setup-title{font-size:1rem;font-weight:500;letter-spacing:.01em;margin-bottom:1.5rem}
 
-/* ─── PHOTO COUNTER ─── */
-#photo-info {
-  position:fixed; top:1rem; left:1.5rem; z-index:10;
-  font-size:0.68rem; color:rgba(255,255,255,0.28);
-  font-family:'JetBrains Mono',monospace;
-  pointer-events:none;
-}
+/* sections in setup */
+.setup-section{display:flex;flex-direction:column;gap:.9rem;padding:1.2rem 0;border-top:.5px solid var(--border)}
+.setup-section:first-of-type{border-top:none;padding-top:.4rem}
 
-/* ─── CONTROLS ─── */
-#controls {
-  position:fixed; bottom:0; left:0; right:0; z-index:20;
-  padding:1rem 1.5rem 1.6rem;
-  display:flex; align-items:flex-end; justify-content:space-between; gap:0.75rem;
-  transition:opacity 0.4s, transform 0.4s;
-}
-#controls.hidden { opacity:0; transform:translateY(10px); pointer-events:none; }
+.field{display:flex;flex-direction:column;gap:.45rem}
+.lbl{font-size:.65rem;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
 
-.ctrl-group { display:flex; gap:0.4rem; align-items:center; flex-wrap:wrap; }
+input[type="file"]{display:none}
+.file-drop{border:1px dashed rgba(255,255,255,.11);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;font-size:.8rem;color:var(--muted);transition:border-color .2s,background .2s}
+.file-drop:hover,.file-drop.drag{border-color:var(--accent);background:rgba(200,185,154,.04)}
+.file-drop .count{color:var(--accent);font-weight:500;font-size:.88rem;margin-top:.3rem}
 
-/* ─── BUTTONS ─── */
-.btn {
-  background: rgba(255,255,255,0.07);
-  border: 0.5px solid rgba(255,255,255,0.1);
-  color: var(--text);
-  font-family: var(--font-ui);
-  font-size: 0.78rem;
-  padding: 0.42rem 0.85rem;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: background 0.18s;
-  white-space: nowrap;
-  display:inline-flex; align-items:center; gap:0.35rem;
-}
-.btn svg { flex-shrink:0; }
-.btn:hover { background:rgba(255,255,255,0.13); }
-.btn.primary { background:var(--accent); color:#1a1a1a; border-color:transparent; font-weight:500; }
-.btn.primary:hover { background:#c4b599; }
-.btn.danger  { background:rgba(232,154,154,0.13); border-color:rgba(232,154,154,0.28); color:#e89a9a; }
-.btn.on      { background:rgba(212,197,169,0.17); border-color:rgba(212,197,169,0.38); color:var(--accent); }
+input[type="number"],input[type="time"],select{background:var(--surface2);border:.5px solid var(--border);color:var(--text);font-family:var(--font-ui);font-size:.8rem;padding:.45rem .6rem;border-radius:6px;outline:none;width:100%}
+input[type="number"]:focus,input[type="time"]:focus,select:focus{border-color:rgba(200,185,154,.4)}
+input[type="time"]{color-scheme:dark}
 
-/* ─── SETUP ─── */
-#setup {
-  position:fixed; inset:0; z-index:100;
-  background:var(--bg);
-  display:flex; align-items:center; justify-content:center;
-  padding:2rem; overflow-y:auto;
-}
-#setup.hidden { display:none; }
+.seg{display:flex}
+.seg .btn{border-radius:0;border-right-width:0;font-size:.72rem;padding:.38rem .7rem}
+.seg .btn:first-child{border-radius:6px 0 0 6px}
+.seg .btn:last-child{border-radius:0 6px 6px 0;border-right-width:.5px}
+.seg .btn.active{background:rgba(200,185,154,.14);border-color:rgba(200,185,154,.35);color:var(--accent)}
 
-.setup-card {
-  width:100%; max-width:560px;
-  display:flex; flex-direction:column; gap:1.4rem;
-  padding:0.5rem 0;
-}
-.setup-title { font-size:1.05rem; font-weight:500; letter-spacing:0.01em; }
-.setup-sub   { font-size:0.78rem; color:var(--muted); margin-top:0.2rem; line-height:1.5; }
+.time-row{display:flex;gap:.35rem;align-items:center}
+.time-row input{text-align:center;width:54px}
+.tsep{color:var(--muted);font-size:1rem}
 
-.field { display:flex; flex-direction:column; gap:0.5rem; }
-.label { font-size:0.68rem; color:var(--muted); letter-spacing:0.07em; text-transform:uppercase; }
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem}
 
-input[type="file"] { display:none; }
-.file-drop {
-  border:1px dashed rgba(255,255,255,0.13);
-  border-radius:8px; padding:1.7rem;
-  text-align:center; cursor:pointer;
-  font-size:0.83rem; color:var(--muted);
-  transition:border-color 0.2s, background 0.2s;
-}
-.file-drop:hover,.file-drop.drag { border-color:var(--accent); background:rgba(212,197,169,0.04); }
-.file-drop .count { color:var(--accent); font-weight:500; font-size:0.95rem; margin-top:0.35rem; }
+.pomo-lbl{font-size:.6rem;color:var(--muted);text-align:center;margin-top:.12rem}
 
-input[type="number"], input[type="text"], select {
-  background:var(--surface); border:0.5px solid var(--border);
-  color:var(--text); font-family:var(--font-ui); font-size:0.83rem;
-  padding:0.5rem 0.65rem; border-radius:6px; outline:none; width:100%;
-}
-input[type="number"]:focus, select:focus { border-color:rgba(212,197,169,0.4); }
+/* ── SETTINGS PANEL ── */
+#settings-panel{position:fixed;top:0;right:0;bottom:0;width:288px;z-index:50;background:rgba(11,11,11,.98);border-left:.5px solid var(--border);padding:0;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);overflow:hidden}
+#settings-panel.open{transform:translateX(0)}
+#settings-scroll{flex:1;overflow-y:auto;padding:1.3rem 1.3rem 2rem}
+.panel-hd{font-size:.65rem;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
+.panel-section{display:flex;flex-direction:column;gap:.75rem;padding:1rem 0;border-top:.5px solid var(--border)}
+.panel-section:first-child{border-top:none;padding-top:0}
+.ps-title{font-size:.6rem;color:rgba(150,140,125,.8);letter-spacing:.1em;text-transform:uppercase}
 
-.seg { display:flex; }
-.seg .btn { border-radius:0; border-right-width:0; font-size:0.75rem; }
-.seg .btn:first-child { border-radius:6px 0 0 6px; }
-.seg .btn:last-child  { border-radius:0 6px 6px 0; border-right-width:0.5px; }
-.seg .btn.active { background:rgba(212,197,169,0.16); border-color:rgba(212,197,169,0.38); color:var(--accent); }
+.range-row{display:flex;gap:.45rem;align-items:center}
+.range-row input[type="range"]{flex:1;accent-color:var(--accent)}
+.rval{font-size:.72rem;color:var(--muted);min-width:32px;text-align:right}
 
-.time-row { display:flex; gap:0.4rem; align-items:center; }
-.time-row input { text-align:center; width:56px; }
-.time-sep { color:var(--muted); font-size:1.05rem; }
+.color-bar{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.sw{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.13);cursor:pointer;flex-shrink:0;transition:transform .12s,border-color .12s}
+.sw:hover{transform:scale(1.18)}
+.sw.on{border-color:#fff;transform:scale(1.12)}
+.cw{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);overflow:hidden;cursor:pointer;flex-shrink:0;position:relative;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);transition:transform .12s}
+.cw:hover{transform:scale(1.18)}
+.cw input[type="color"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:none;padding:0}
 
-.g2 { display:grid; grid-template-columns:1fr 1fr; gap:0.7rem; }
+.hex-row{display:flex;align-items:center;gap:.32rem;margin-top:.2rem}
+.hex-row span{font-size:.68rem;color:var(--muted)}
+.hex-input{background:var(--surface2);border:.5px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.73rem;padding:.26rem .45rem;border-radius:5px;outline:none;width:80px}
+.hex-input:focus{border-color:rgba(200,185,154,.4)}
 
-/* ─── SETTINGS PANEL ─── */
-#settings-panel {
-  position:fixed; top:0; right:0; bottom:0;
-  width:296px; z-index:50;
-  background:rgba(12,12,12,0.98);
-  border-left:0.5px solid var(--border);
-  padding:1.4rem; display:flex; flex-direction:column; gap:1.1rem;
-  transform:translateX(100%); transition:transform 0.33s cubic-bezier(.4,0,.2,1);
-  overflow-y:auto;
-}
-#settings-panel.open { transform:translateX(0); }
-.panel-hd { font-size:0.7rem; font-weight:600; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; }
+.font-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.font-btn{background:var(--surface2);border:.5px solid var(--border);color:var(--text);padding:.45rem .35rem;border-radius:6px;cursor:pointer;text-align:center;line-height:1;font-size:.88rem;transition:background .12s,border-color .12s}
+.font-btn:hover{background:rgba(255,255,255,.08)}
+.font-btn.on{background:rgba(200,185,154,.12);border-color:rgba(200,185,154,.35)}
+.font-btn small{display:block;font-size:.55rem;color:var(--muted);margin-top:2px;font-family:var(--font-ui)}
 
-.range-row { display:flex; gap:0.5rem; align-items:center; }
-.range-row input[type="range"] { flex:1; accent-color:var(--accent); }
-.range-val { font-size:0.74rem; color:var(--muted); min-width:34px; text-align:right; }
+.tint-bar{display:flex;gap:.38rem;flex-wrap:wrap}
+.td{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.11);cursor:pointer;transition:transform .12s,border-color .12s}
+.td:hover{transform:scale(1.18)}
+.td.on{border-color:#fff;transform:scale(1.12)}
 
-/* Color picker */
-.color-bar { display:flex; gap:0.45rem; align-items:center; flex-wrap:wrap; }
-.swatch {
-  width:24px; height:24px; border-radius:50%;
-  border:1.5px solid rgba(255,255,255,0.14);
-  cursor:pointer; flex-shrink:0;
-  transition:transform 0.13s, border-color 0.13s;
-}
-.swatch:hover { transform:scale(1.18); }
-.swatch.on    { border-color:#fff; transform:scale(1.12); }
+/* toggle switch */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.toggle-row .tgl-lbl{font-size:.75rem;color:var(--text)}
+.toggle{position:relative;width:32px;height:18px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.12);border-radius:9px;transition:background .2s;cursor:pointer}
+.toggle-slider::before{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:#888;border-radius:50%;transition:transform .2s,background .2s}
+.toggle input:checked+.toggle-slider{background:rgba(200,185,154,.35)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(14px);background:var(--accent)}
 
-/* the color wheel button */
-.color-wheel-wrap {
-  width:24px; height:24px; border-radius:50%;
-  border:1.5px solid rgba(255,255,255,0.2);
-  overflow:hidden; cursor:pointer; flex-shrink:0;
-  position:relative;
-  background: conic-gradient(red,yellow,lime,cyan,blue,magenta,red);
-  transition:transform 0.13s;
-}
-.color-wheel-wrap:hover { transform:scale(1.18); }
-.color-wheel-wrap input[type="color"] {
-  position:absolute; inset:0; width:100%; height:100%;
-  opacity:0; cursor:pointer; border:none; padding:0;
-}
+hr{border:none;border-top:.5px solid var(--border)}
 
-.hex-row { display:flex; align-items:center; gap:0.35rem; margin-top:0.25rem; }
-.hex-row span { font-size:0.7rem; color:var(--muted); }
-.hex-input {
-  background:var(--surface); border:0.5px solid var(--border);
-  color:var(--text); font-family:'JetBrains Mono',monospace;
-  font-size:0.76rem; padding:0.28rem 0.5rem; border-radius:5px;
-  outline:none; width:84px;
-}
-.hex-input:focus { border-color:rgba(212,197,169,0.4); }
+/* ── MODALS ── */
+.modal-backdrop{display:none;position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.72);align-items:center;justify-content:center}
+.modal-backdrop.show{display:flex}
+.modal-card{background:var(--surface);border:.5px solid var(--border2);border-radius:12px;padding:1.8rem;width:100%;max-width:320px;display:flex;flex-direction:column;gap:1rem}
+.modal-card h3{font-size:.9rem;font-weight:500}
+.modal-btns{display:flex;gap:.55rem}
 
-/* Font grid */
-.font-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.38rem; }
-.font-btn {
-  background:var(--surface); border:0.5px solid var(--border);
-  color:var(--text); padding:0.5rem 0.4rem; border-radius:6px;
-  cursor:pointer; text-align:center; line-height:1;
-  font-size:0.9rem; transition:background 0.13s, border-color 0.13s;
-}
-.font-btn:hover { background:rgba(255,255,255,0.09); }
-.font-btn.on { background:rgba(212,197,169,0.14); border-color:rgba(212,197,169,0.38); }
-.font-btn small { display:block; font-size:0.57rem; color:var(--muted); margin-top:3px; font-family:var(--font-ui); }
-
-/* Tint swatches */
-.tint-bar { display:flex; gap:0.4rem; flex-wrap:wrap; }
-.tint-dot {
-  width:24px; height:24px; border-radius:50%;
-  border:1.5px solid rgba(255,255,255,0.13);
-  cursor:pointer; transition:transform 0.13s, border-color 0.13s;
-}
-.tint-dot:hover { transform:scale(1.18); }
-.tint-dot.on    { border-color:#fff; transform:scale(1.12); }
-
-hr { border:none; border-top:0.5px solid var(--border); }
-
-/* ─── PiP WINDOW (Document PiP) ─── */
-/* Styles injected into PiP window from JS, no element here */
-
-/* ─── DONE ─── */
-#done-overlay {
-  position:fixed; inset:0; z-index:80;
-  background:rgba(0,0,0,0.82);
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1.4rem;
-  opacity:0; pointer-events:none; transition:opacity 0.45s;
-}
-#done-overlay.show { opacity:1; pointer-events:all; }
-#done-overlay h2 { font-size:1.35rem; font-weight:400; }
-#done-overlay p  { font-size:0.82rem; color:var(--muted); }
+/* ── DONE ── */
+#done-overlay{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.3rem;opacity:0;pointer-events:none;transition:opacity .4s}
+#done-overlay.show{opacity:1;pointer-events:all}
+#done-overlay h2{font-size:1.3rem;font-weight:400}
+#done-overlay p{font-size:.8rem;color:var(--muted)}
 </style>
 </head>
-<body class="pos-bottom-right transition-fade">
+<body class="pos-bottom-right t-fade">
 
-<!-- ── SETUP ── -->
+<!-- ══ SETUP ══ -->
 <div id="setup">
-  <div class="setup-card">
-    <div>
-      <div class="setup-title">Photo Flow Timer</div>
-      <div class="setup-sub">写真をアップロードして集中タイマーをスタート。</div>
-    </div>
+<div class="setup-card">
+  <div class="setup-title">Photo Flow Timer</div>
 
+  <!-- Photos -->
+  <div class="setup-section">
     <div class="field">
-      <div class="label">写真を選ぶ</div>
       <label class="file-drop" id="drop-zone">
         <input type="file" id="file-input" multiple accept="image/*">
-        <div>フォルダやファイルをここにドロップ</div>
-        <div style="font-size:0.73rem;margin-top:0.25rem">またはクリックして選択</div>
+        <div>📁 写真をドロップ、またはクリックして選択</div>
         <div class="count" id="file-count"></div>
       </label>
     </div>
+  </div>
 
+  <!-- Mode -->
+  <div class="setup-section">
     <div class="field">
-      <div class="label">モード</div>
+      <div class="lbl">モード</div>
       <div class="seg" id="mode-seg">
-        <button class="btn active" data-v="timer">⏱ カウントダウン</button>
-        <button class="btn" data-v="clock">🕐 現在時刻</button>
+        <button class="btn active" data-v="timer">⏱ タイマー</button>
+        <button class="btn" data-v="pomodoro">🍅 ポモドーロ</button>
+        <button class="btn" data-v="clock">🕐 時刻</button>
+        <button class="btn" data-v="alarm">🔔 アラーム</button>
       </div>
     </div>
 
-    <div class="field" id="timer-setup-fields">
-      <div class="label">タイマー時間</div>
+    <!-- timer -->
+    <div id="f-timer" class="field">
+      <div class="lbl">時間</div>
       <div class="time-row">
-        <input type="number" id="t-hours"   value="0"  min="0" max="23" placeholder="時">
-        <span class="time-sep">:</span>
-        <input type="number" id="t-minutes" value="25" min="0" max="59" placeholder="分">
-        <span class="time-sep">:</span>
-        <input type="number" id="t-seconds" value="0"  min="0" max="59" placeholder="秒">
+        <input type="number" id="t-h" value="0" min="0" max="23"><span class="tsep">:</span>
+        <input type="number" id="t-m" value="25" min="0" max="59"><span class="tsep">:</span>
+        <input type="number" id="t-s" value="0" min="0" max="59">
       </div>
     </div>
 
+    <!-- pomodoro -->
+    <div id="f-pomo" class="field" style="display:none">
+      <div class="lbl">ポモドーロ</div>
+      <div class="g3">
+        <div><input type="number" id="p-focus" value="25" min="1" max="120"><div class="pomo-lbl">集中（分）</div></div>
+        <div><input type="number" id="p-break" value="5" min="1" max="60"><div class="pomo-lbl">休憩（分）</div></div>
+        <div><input type="number" id="p-rounds" value="4" min="1" max="20"><div class="pomo-lbl">セット</div></div>
+      </div>
+    </div>
+
+    <!-- alarm -->
+    <div id="f-alarm" class="field" style="display:none">
+      <div class="lbl">アラーム時刻</div>
+      <input type="time" id="alarm-time" value="18:00">
+    </div>
+  </div>
+
+  <!-- Display options -->
+  <div class="setup-section">
     <div class="g2">
       <div class="field">
-        <div class="label">写真の切替（秒）</div>
-        <input type="number" id="interval-input" value="8" min="3" max="60">
+        <div class="lbl">時刻表示</div>
+        <div class="seg" id="hour-seg">
+          <button class="btn active" data-v="24">24h</button>
+          <button class="btn" data-v="12">AM/PM</button>
+        </div>
       </div>
       <div class="field">
-        <div class="label">演出</div>
-        <select id="transition-select">
-          <option value="fade">フェード</option>
+        <div class="lbl">秒数表示</div>
+        <div class="seg" id="sec-seg">
+          <button class="btn active" data-v="1">あり</button>
+          <button class="btn" data-v="0">なし</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- alarm countdown -->
+    <div id="f-alarm-sub" class="field" style="display:none">
+      <div class="lbl">残り時間を表示</div>
+      <div class="seg" id="alarm-sub-seg">
+        <button class="btn active" data-v="1">表示</button>
+        <button class="btn" data-v="0">非表示</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Photo / transition -->
+  <div class="setup-section">
+    <div class="g2">
+      <div class="field">
+        <div class="lbl">切替間隔（秒）</div>
+        <input type="number" id="interval-input" value="8" min="3" max="120">
+      </div>
+      <div class="field">
+        <div class="lbl">演出</div>
+        <select id="trans-select">
+          <option value="none">なし</option>
+          <option value="fade" selected>フェード</option>
+          <option value="dissolve">ディゾルブ</option>
           <option value="slide">スライド</option>
-          <option value="river">リバー</option>
+          <option value="drift">ドリフト</option>
+          <option value="kenburns">ケン・バーンズ</option>
+          <option value="zoomout">ズームアウト</option>
+          <option value="flip">フリップ</option>
+          <option value="blur">ブラー</option>
+          <option value="glitch">グリッチ</option>
         </select>
       </div>
       <div class="field">
-        <div class="label">表示スタイル</div>
-        <select id="display-select">
-          <option value="">全画面</option>
-          <option value="framed">フレーム</option>
-        </select>
+        <div class="lbl">表示スタイル</div>
+        <select id="disp-select"><option value="">全画面</option><option value="framed">フレーム</option></select>
       </div>
       <div class="field">
-        <div class="label">タイマー位置</div>
+        <div class="lbl">タイマー位置</div>
         <select id="pos-select">
           <option value="pos-bottom-right">右下</option>
           <option value="pos-bottom-left">左下</option>
@@ -352,662 +375,832 @@ hr { border:none; border-top:0.5px solid var(--border); }
         </select>
       </div>
     </div>
+  </div>
 
-    <div class="field" id="sound-setup-field">
-      <div class="label">タイマー音</div>
+  <!-- Sound -->
+  <div class="setup-section" id="f-sound">
+    <div class="field">
+      <div class="lbl">アラーム音</div>
       <div class="seg" id="sound-seg">
-        <button class="btn active" data-v="end-only">終了のみ</button>
-        <button class="btn" data-v="countdown">残り10秒カウント</button>
+        <button class="btn active" data-v="chime">チャイム</button>
+        <button class="btn" data-v="beep">ビープ</button>
+        <button class="btn" data-v="bell">ベル</button>
         <button class="btn" data-v="none">なし</button>
       </div>
     </div>
+    <div class="field" id="f-countdown-sound">
+      <div class="lbl">残り10秒カウント音</div>
+      <div class="seg" id="countdown-seg">
+        <button class="btn active" data-v="0">なし</button>
+        <button class="btn" data-v="1">あり</button>
+      </div>
+    </div>
+  </div>
 
-    <button class="btn primary" onclick="startSession()">スタート →</button>
+  <div class="setup-section">
+    <button class="btn primary" onclick="startSession()" style="width:100%;justify-content:center;padding:.6rem">スタート →</button>
   </div>
 </div>
+</div>
 
-<!-- ── PHOTO CANVAS ── -->
+<!-- ══ CANVAS ══ -->
 <div id="photo-canvas">
   <div class="photo-slot" id="slot-a"></div>
   <div class="photo-slot" id="slot-b"></div>
 </div>
 <div id="photo-overlay"></div>
-<div id="gradient-overlay"></div>
+<div id="grad"></div>
 <div id="progress"><div id="progress-fill"></div></div>
 <div id="photo-info"></div>
+<div id="pomo-badge"></div>
 
-<!-- ── TIMER ── -->
+<!-- ══ TIMER ══ -->
 <div id="timer-display" class="font-mono">00:00</div>
+<div id="alarm-sub"></div>
 
-<!-- ── CONTROLS ── -->
-<div id="controls" class="hidden">
-  <div class="ctrl-group">
-    <!-- pause -->
-    <button class="btn" onclick="togglePause()" id="pause-btn">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="1" width="3.5" height="10" rx="1"/><rect x="7.5" y="1" width="3.5" height="10" rx="1"/></svg>
-      一時停止
+<!-- ══ PiP OVERLAY (shown on main tab when PiP is active) ══ -->
+<div id="pip-overlay">
+
+  <!-- Playback -->
+  <div id="pip-playback">
+    <!-- pause/play -->
+    <button class="pip-icon-btn" id="pip-pause-main" onclick="togglePause()" title="一時停止 / 再開">
+      <svg id="pip-pause-icon" width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
+        <rect x="3" y="3" width="5" height="16" rx="1.5"/>
+        <rect x="14" y="3" width="5" height="16" rx="1.5"/>
+      </svg>
     </button>
     <!-- next photo -->
+    <button class="pip-icon-btn" onclick="skipPhoto()" title="次の写真">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="currentColor">
+        <path d="M3 3.5 15.5 11 3 18.5V3.5zM17 3h2.5v16H17z"/>
+      </svg>
+    </button>
+    <!-- close PiP -->
+    <button class="pip-icon-btn close-btn" onclick="closePip()" title="PiPを閉じる" style="margin-left:.5rem">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <path d="M3 3l12 12M15 3 3 15"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Settings grid -->
+  <div id="pip-settings-grid">
+    <div class="pip-row">
+      <span class="pip-row-lbl">コンテンツ</span>
+      <select id="pip-mode-select" onchange="setPipMode(this.value)">
+        <option value="both">写真＋タイマー</option>
+        <option value="timer">タイマーのみ</option>
+        <option value="photo">写真のみ</option>
+      </select>
+    </div>
+    <div class="pip-row">
+      <span class="pip-row-lbl">PiP内演出</span>
+      <select id="pip-trans-select" onchange="setPipTrans(this.value)">
+        <option value="none" selected>なし</option>
+        <option value="fade">フェード</option>
+        <option value="dissolve">ディゾルブ</option>
+      </select>
+    </div>
+    <div class="pip-row">
+      <span class="pip-row-lbl">写真の暗さ</span>
+      <input type="range" min="0" max=".85" step=".05" value=".45" id="pip-dim-range" oninput="setPipDim(this.value)">
+    </div>
+  </div>
+
+  <div id="pip-hint">🪟 PiP ウィンドウが開いています</div>
+</div>
+
+<!-- ══ CONTROLS ══ -->
+<div id="controls" class="hidden">
+  <div class="cg">
+    <button class="btn" onclick="togglePause()" id="pause-btn">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><rect x="1" y="1" width="3" height="9" rx=".8"/><rect x="7" y="1" width="3" height="9" rx=".8"/></svg>
+      一時停止
+    </button>
     <button class="btn" onclick="skipPhoto()">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M1 1.8L8.2 6 1 10.2V1.8zM10 1h1.5v10H10z"/></svg>
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><path d="M1 1.5 7.5 5.5 1 9.5V1.5zM9 1h1.5v9H9z"/></svg>
       次の写真
     </button>
+    <button class="btn soft-green" id="pomo-skip-btn" style="display:none" onclick="pomoSkipPhase()">次フェーズ →</button>
   </div>
-  <div class="ctrl-group">
-    <!-- clock toggle -->
-    <button class="btn" onclick="toggleClockMode()" id="clock-btn">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="6.5" cy="6.5" r="5.5"/><path d="M6.5 3.5v3l2 1.5" stroke-linecap="round"/></svg>
-      <span id="clock-btn-label">時刻表示</span>
+  <div class="cg">
+    <button class="btn" onclick="toggleClockView()" id="clock-btn" style="display:none">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="6" cy="6" r="5"/><path d="M6 3v3l1.8 1.4" stroke-linecap="round"/></svg>
+      <span id="clock-btn-lbl">時刻表示</span>
     </button>
-    <!-- pip -->
-    <button class="btn" onclick="togglePip()" id="pip-btn" title="Picture in Picture（他のタブに移動しても浮いて表示）">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="11" height="9" rx="1.5"/><rect x="6.5" y="6" width="4.5" height="3.5" rx="1" fill="currentColor" stroke="none"/></svg>
+    <button class="btn" onclick="togglePip()" id="pip-btn">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.1"><rect x="1" y="2" width="10" height="8" rx="1.5"/><rect x="6" y="5.5" width="4" height="3" rx=".8" fill="currentColor" stroke="none"/></svg>
       PiP
     </button>
-    <!-- settings -->
     <button class="btn" onclick="openSettings()">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="currentColor"><path d="M5.5 1.5h2l.4 1.4a4.2 4.2 0 0 1 1 .6l1.4-.5 1 1.7-1.1 1a4 4 0 0 1 0 1.2l1.1 1-1 1.7-1.4-.5a4.2 4.2 0 0 1-1 .6l-.4 1.4h-2l-.4-1.4a4.2 4.2 0 0 1-1-.6l-1.4.5-1-1.7 1.1-1a4 4 0 0 1 0-1.2l-1.1-1 1-1.7 1.4.5a4.2 4.2 0 0 1 1-.6zm1 2.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M5 1.4h2l.4 1.3c.25.1.48.22.7.37l1.3-.46.95 1.65-1 .9a4 4 0 0 1 0 1.1l1 .9-.95 1.65-1.3-.46c-.22.15-.45.27-.7.37L7 10.6H5l-.4-1.3a4 4 0 0 1-.7-.37l-1.3.46L1.65 7.7l1-.9a4 4 0 0 1 0-1.1l-1-.9L2.6 3.14l1.3.46c.22-.15.45-.27.7-.37zm1 2.1a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>
       設定
     </button>
-    <!-- end -->
-    <button class="btn danger" onclick="resetAll()">
-      <svg width="11" height="11" viewBox="0 0 11 11" fill="currentColor"><path d="M1 1l9 9M10 1l-9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      終了
-    </button>
+    <button class="btn danger" onclick="resetAll()">終了</button>
   </div>
 </div>
 
-<!-- ── SETTINGS PANEL ── -->
+<!-- ══ SETTINGS PANEL ══ -->
 <div id="settings-panel">
+<div id="settings-scroll">
   <div class="panel-hd">設定</div>
 
-  <!-- Font -->
-  <div class="field">
-    <div class="label">タイマーフォント</div>
-    <div class="font-grid" id="font-grid">
-      <button class="font-btn on" data-font="font-mono"     onclick="setFont(this)" style="font-family:'JetBrains Mono'">25:00<small>Mono</small></button>
-      <button class="font-btn"    data-font="font-space"    onclick="setFont(this)" style="font-family:'Space Mono'">25:00<small>Space</small></button>
-      <button class="font-btn"    data-font="font-bebas"    onclick="setFont(this)" style="font-family:'Bebas Neue';font-size:1.2rem">25:00<small>Bebas</small></button>
-      <button class="font-btn"    data-font="font-playfair" onclick="setFont(this)" style="font-family:'Playfair Display'">25:00<small>Playfair</small></button>
-      <button class="font-btn"    data-font="font-oswald"   onclick="setFont(this)" style="font-family:'Oswald';font-weight:300;letter-spacing:.08em">25:00<small>Oswald</small></button>
-      <button class="font-btn"    data-font="font-dm"       onclick="setFont(this)" style="font-family:'DM Serif Display'">25:00<small>DM Serif</small></button>
-      <button class="font-btn"    data-font="font-rajdhani" onclick="setFont(this)" style="font-family:'Rajdhani';font-weight:300;letter-spacing:.1em">25:00<small>Rajdhani</small></button>
-    </div>
-  </div>
-
-  <hr>
-
-  <!-- Color -->
-  <div class="field">
-    <div class="label">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="margin-right:3px;vertical-align:middle"><circle cx="5" cy="5" r="4.5" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="5" cy="5" r="2"/></svg>
-      タイマーカラー
-    </div>
-    <div class="color-bar" id="color-swatches">
-      <div class="swatch on" style="background:#e8e8e8" data-c="#e8e8e8" onclick="pickSwatch(this)"></div>
-      <div class="swatch" style="background:#d4c5a9" data-c="#d4c5a9" onclick="pickSwatch(this)"></div>
-      <div class="swatch" style="background:#a9c4d4" data-c="#a9c4d4" onclick="pickSwatch(this)"></div>
-      <div class="swatch" style="background:#a9d4b5" data-c="#a9d4b5" onclick="pickSwatch(this)"></div>
-      <div class="swatch" style="background:#d4a9c4" data-c="#d4a9c4" onclick="pickSwatch(this)"></div>
-      <div class="swatch" style="background:#f5efe0" data-c="#f5efe0" onclick="pickSwatch(this)"></div>
-      <!-- Color wheel button -->
-      <div class="color-wheel-wrap" title="カラーホイールで選ぶ">
-        <input type="color" id="color-picker" value="#e8e8e8" oninput="colorFromPicker(this.value)">
+  <!-- Timer display -->
+  <div class="panel-section">
+    <div class="ps-title">タイマー表示</div>
+    <div class="field">
+      <div class="lbl">フォント</div>
+      <div class="font-grid" id="font-grid">
+        <button class="font-btn on" data-font="font-mono"     onclick="setFont(this)" style="font-family:'JetBrains Mono'">25:00<small>Mono</small></button>
+        <button class="font-btn"   data-font="font-space"    onclick="setFont(this)" style="font-family:'Space Mono'">25:00<small>Space</small></button>
+        <button class="font-btn"   data-font="font-bebas"    onclick="setFont(this)" style="font-family:'Bebas Neue';font-size:1.1rem">25:00<small>Bebas</small></button>
+        <button class="font-btn"   data-font="font-playfair" onclick="setFont(this)" style="font-family:'Playfair Display'">25:00<small>Playfair</small></button>
+        <button class="font-btn"   data-font="font-oswald"   onclick="setFont(this)" style="font-family:'Oswald';font-weight:300;letter-spacing:.08em">25:00<small>Oswald</small></button>
+        <button class="font-btn"   data-font="font-dm"       onclick="setFont(this)" style="font-family:'DM Serif Display'">25:00<small>DM Serif</small></button>
+        <button class="font-btn"   data-font="font-rajdhani" onclick="setFont(this)" style="font-family:'Rajdhani';font-weight:300;letter-spacing:.1em">25:00<small>Rajdhani</small></button>
       </div>
     </div>
-    <div class="hex-row">
-      <span>#</span>
-      <input class="hex-input" id="hex-input" value="e8e8e8" maxlength="6" oninput="colorFromHex(this.value)" placeholder="e8e8e8">
-      <span style="font-size:0.66rem;color:var(--muted)">HEXコード</span>
+    <div class="field">
+      <div class="lbl">カラー</div>
+      <div class="color-bar" id="color-swatches">
+        <div class="sw on" style="background:#e2e2e2" data-c="#e2e2e2" onclick="pickSwatch(this)"></div>
+        <div class="sw" style="background:#d4c5a9" data-c="#d4c5a9" onclick="pickSwatch(this)"></div>
+        <div class="sw" style="background:#a9c4d4" data-c="#a9c4d4" onclick="pickSwatch(this)"></div>
+        <div class="sw" style="background:#a9d4b5" data-c="#a9d4b5" onclick="pickSwatch(this)"></div>
+        <div class="sw" style="background:#d4a9c4" data-c="#d4a9c4" onclick="pickSwatch(this)"></div>
+        <div class="sw" style="background:#f0e8d8" data-c="#f0e8d8" onclick="pickSwatch(this)"></div>
+        <div class="cw" title="カラーホイール"><input type="color" id="color-picker" value="#e2e2e2" oninput="colorFromPicker(this.value)"></div>
+      </div>
+      <div class="hex-row">
+        <span>#</span>
+        <input class="hex-input" id="hex-input" value="e2e2e2" maxlength="6" oninput="colorFromHex(this.value)">
+        <span style="font-size:.63rem;color:var(--muted)">HEX</span>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl">サイズ</div>
+      <div class="range-row">
+        <input type="range" min="1.5" max="13" step=".5" value="5" id="font-size-range" oninput="updateFontSize(this.value)">
+        <span class="rval" id="font-size-val">5rem</span>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl">透明度</div>
+      <div class="range-row">
+        <input type="range" min=".1" max="1" step=".05" value="1" id="timer-opacity-range" oninput="updateTimerOpacity(this.value)">
+        <span class="rval" id="timer-opacity-val">100%</span>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <span class="tgl-lbl">秒数を表示</span>
+      <label class="toggle"><input type="checkbox" id="show-seconds-toggle" checked onchange="setShowSeconds(this.checked)"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="toggle-row">
+      <span class="tgl-lbl">12時間表示 (AM/PM)</span>
+      <label class="toggle"><input type="checkbox" id="hour12-toggle" onchange="setHour12(this.checked)"><span class="toggle-slider"></span></label>
     </div>
   </div>
 
-  <hr>
-
-  <!-- Size / Opacity -->
-  <div class="field">
-    <div class="label">フォントサイズ</div>
-    <div class="range-row">
-      <input type="range" min="2" max="13" step="0.5" value="5" id="font-size-range" oninput="updateFontSize(this.value)">
-      <span class="range-val" id="font-size-val">5rem</span>
+  <!-- Alarm sub -->
+  <div class="panel-section" id="panel-alarm-sub-section" style="display:none">
+    <div class="ps-title">残り時間表示（アラームモード）</div>
+    <div class="toggle-row">
+      <span class="tgl-lbl">残り時間を表示</span>
+      <label class="toggle"><input type="checkbox" id="alarm-sub-toggle" checked onchange="setAlarmSubVisible(this.checked)"><span class="toggle-slider"></span></label>
     </div>
-  </div>
-  <div class="field">
-    <div class="label">タイマー透明度</div>
-    <div class="range-row">
-      <input type="range" min="0.1" max="1" step="0.05" value="1" id="timer-opacity-range" oninput="updateTimerOpacity(this.value)">
-      <span class="range-val" id="timer-opacity-val">100%</span>
+    <div class="field">
+      <div class="lbl">サイズ</div>
+      <div class="range-row">
+        <input type="range" min=".6" max="3" step=".1" value="1.1" id="alarm-sub-size-range" oninput="updateAlarmSubSize(this.value)">
+        <span class="rval" id="alarm-sub-size-val">1.1rem</span>
+      </div>
     </div>
-  </div>
-
-  <hr>
-
-  <!-- Photo overlay -->
-  <div class="field">
-    <div class="label">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" style="margin-right:3px;vertical-align:middle"><rect width="10" height="10" rx="2" fill="currentColor" opacity="0.3"/><rect x="2" y="2" width="6" height="6" rx="1"/></svg>
-      写真の暗さ（タイマーを見やすくする幕）
-    </div>
-    <div class="range-row">
-      <input type="range" min="0" max="0.88" step="0.04" value="0.35" id="overlay-range" oninput="updateOverlay(this.value)">
-      <span class="range-val" id="overlay-val">35%</span>
-    </div>
-    <div class="label" style="margin-top:0.5rem">幕の色</div>
-    <div class="tint-bar" id="tint-grid">
-      <div class="tint-dot on"  style="background:#000"    data-t="0,0,0"          onclick="setTint(this)"></div>
-      <div class="tint-dot"     style="background:#1a0808" data-t="40,8,8"         onclick="setTint(this)"></div>
-      <div class="tint-dot"     style="background:#08081a" data-t="8,8,40"         onclick="setTint(this)"></div>
-      <div class="tint-dot"     style="background:#081a08" data-t="8,40,8"         onclick="setTint(this)"></div>
-      <div class="tint-dot"     style="background:#1a1108" data-t="40,28,8"        onclick="setTint(this)"></div>
-      <div class="tint-dot"     style="background:#101010" data-t="16,16,16"       onclick="setTint(this)"></div>
-      <div class="tint-dot"     style="background:#fff;border-color:rgba(0,0,0,.25)" data-t="255,255,255" onclick="setTint(this)"></div>
+    <div class="field">
+      <div class="lbl">カラー</div>
+      <div class="color-bar" id="alarm-sub-swatches">
+        <div class="sw on" style="background:#aaaaaa" data-c="#aaaaaa" onclick="pickAlarmSubSwatch(this)"></div>
+        <div class="sw" style="background:#c8b99a" data-c="#c8b99a" onclick="pickAlarmSubSwatch(this)"></div>
+        <div class="sw" style="background:#9ac8b0" data-c="#9ac8b0" onclick="pickAlarmSubSwatch(this)"></div>
+        <div class="sw" style="background:#9ab0c8" data-c="#9ab0c8" onclick="pickAlarmSubSwatch(this)"></div>
+        <div class="cw" title="カラーホイール"><input type="color" id="alarm-sub-picker" value="#aaaaaa" oninput="alarmSubColorFromPicker(this.value)"></div>
+      </div>
     </div>
   </div>
 
-  <hr>
+  <!-- Photo -->
+  <div class="panel-section">
+    <div class="ps-title">写真</div>
+    <div class="field">
+      <div class="lbl">写真の暗さ</div>
+      <div class="range-row">
+        <input type="range" min="0" max=".88" step=".04" value=".35" id="overlay-range" oninput="updateOverlay(this.value)">
+        <span class="rval" id="overlay-val">35%</span>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl">幕の色</div>
+      <div class="tint-bar" id="tint-grid">
+        <div class="td on" style="background:#000"    data-t="0,0,0"     onclick="setTint(this)"></div>
+        <div class="td" style="background:#1a0808"   data-t="40,8,8"    onclick="setTint(this)"></div>
+        <div class="td" style="background:#08081a"   data-t="8,8,40"    onclick="setTint(this)"></div>
+        <div class="td" style="background:#081a08"   data-t="8,40,8"    onclick="setTint(this)"></div>
+        <div class="td" style="background:#1a1108"   data-t="40,28,8"   onclick="setTint(this)"></div>
+        <div class="td" style="background:#fff;border-color:rgba(0,0,0,.2)" data-t="255,255,255" onclick="setTint(this)"></div>
+      </div>
+    </div>
+    <div class="field">
+      <div class="lbl">演出</div>
+      <select id="trans-live" onchange="setTransition(this.value)">
+        <option value="none">なし</option><option value="fade" selected>フェード</option><option value="dissolve">ディゾルブ</option>
+        <option value="slide">スライド</option><option value="drift">ドリフト</option><option value="kenburns">ケン・バーンズ</option>
+        <option value="zoomout">ズームアウト</option><option value="flip">フリップ</option><option value="blur">ブラー</option><option value="glitch">グリッチ</option>
+      </select>
+    </div>
+    <div class="field">
+      <div class="lbl">切替間隔（秒）</div>
+      <input type="number" min="3" max="120" value="8" id="interval-live" onchange="updateInterval(this.value)">
+    </div>
+    <div class="field">
+      <div class="lbl">表示スタイル</div>
+      <select id="disp-live" onchange="setDisplayStyle(this.value)"><option value="">全画面</option><option value="framed">フレーム</option></select>
+    </div>
+  </div>
 
   <!-- Layout -->
-  <div class="field">
-    <div class="label">演出</div>
-    <select id="transition-live" onchange="setTransition(this.value)">
-      <option value="fade">フェード</option>
-      <option value="slide">スライド</option>
-      <option value="river">リバー</option>
-    </select>
-  </div>
-  <div class="field">
-    <div class="label">写真切替（秒）</div>
-    <input type="number" min="3" max="60" value="8" id="interval-live" onchange="updateInterval(this.value)">
-  </div>
-  <div class="field">
-    <div class="label">表示スタイル</div>
-    <select id="display-live" onchange="setDisplayStyle(this.value)">
-      <option value="">全画面</option>
-      <option value="framed">フレーム</option>
-    </select>
-  </div>
-  <div class="field">
-    <div class="label">タイマー位置</div>
-    <select id="pos-live" onchange="setPos(this.value)">
-      <option value="pos-bottom-right">右下</option>
-      <option value="pos-bottom-left">左下</option>
-      <option value="pos-top-right">右上</option>
-      <option value="pos-top-left">左上</option>
-      <option value="pos-center">中央</option>
-    </select>
-  </div>
-  <div class="field">
-    <div class="label">タイマー音</div>
-    <div class="seg" id="sound-seg-live">
-      <button class="btn active" data-v="end-only">終了のみ</button>
-      <button class="btn" data-v="countdown">カウント</button>
-      <button class="btn" data-v="none">なし</button>
+  <div class="panel-section">
+    <div class="ps-title">レイアウト</div>
+    <div class="field">
+      <div class="lbl">タイマー位置</div>
+      <select id="pos-live" onchange="setPos(this.value)">
+        <option value="pos-bottom-right">右下</option><option value="pos-bottom-left">左下</option>
+        <option value="pos-top-right">右上</option><option value="pos-top-left">左上</option><option value="pos-center">中央</option>
+      </select>
     </div>
   </div>
 
-  <hr>
-  <button class="btn" onclick="closeSettings()">閉じる</button>
+  <!-- Sound -->
+  <div class="panel-section">
+    <div class="ps-title">サウンド</div>
+    <div class="field">
+      <div class="lbl">アラーム音</div>
+      <div class="seg" id="sound-seg-live">
+        <button class="btn active" data-v="chime">チャイム</button>
+        <button class="btn" data-v="beep">ビープ</button>
+        <button class="btn" data-v="bell">ベル</button>
+        <button class="btn" data-v="none">なし</button>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <span class="tgl-lbl">残り10秒カウント音</span>
+      <label class="toggle"><input type="checkbox" id="countdown-sound-toggle" onchange="setCountdownSound(this.checked)"><span class="toggle-slider"></span></label>
+    </div>
+  </div>
+
+  <div class="panel-section">
+    <button class="btn" onclick="closeSettings()" style="width:100%;justify-content:center">閉じる</button>
+  </div>
+</div>
 </div>
 
-<!-- ── DONE ── -->
+<!-- ══ CLOCK SWITCH MODAL ══ -->
+<div class="modal-backdrop" id="clock-switch-modal">
+  <div class="modal-card">
+    <h3>⏱ タイマーを開始</h3>
+    <div class="field">
+      <div class="lbl">カウントダウン時間</div>
+      <div class="time-row">
+        <input type="number" id="cs-h" value="0" min="0" max="23"><span class="tsep">:</span>
+        <input type="number" id="cs-m" value="25" min="0" max="59"><span class="tsep">:</span>
+        <input type="number" id="cs-s" value="0" min="0" max="59">
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn primary" onclick="switchToTimer()">スタート</button>
+      <button class="btn" onclick="closeModal('clock-switch-modal')">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DONE ══ -->
 <div id="done-overlay">
-  <h2>⏱ タイマー終了</h2>
-  <p>集中お疲れさまでした。</p>
-  <div style="display:flex;gap:0.7rem">
+  <h2 id="done-title">⏱ 終了</h2>
+  <p id="done-sub"></p>
+  <div style="display:flex;gap:.6rem">
     <button class="btn primary" onclick="resetAll()">最初から</button>
     <button class="btn" onclick="closeDone()">続ける</button>
   </div>
 </div>
 
 <script>
-// ── Audio ──
-const AudioCtx = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
-function getAudio() { if (!audioCtx) audioCtx = new AudioCtx(); return audioCtx; }
-function beep(freq=880, dur=0.12, vol=0.4, delay=0) {
-  const ctx=getAudio(), osc=ctx.createOscillator(), g=ctx.createGain();
-  osc.connect(g); g.connect(ctx.destination);
-  osc.frequency.value=freq; osc.type='sine';
+// ══ AUDIO ══
+const AudioCtx=window.AudioContext||window.webkitAudioContext;
+let audioCtx=null;
+function getAudio(){if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
+function beep(freq,dur,vol,delay=0){
+  const ctx=getAudio(),osc=ctx.createOscillator(),g=ctx.createGain();
+  osc.connect(g);g.connect(ctx.destination);
+  osc.frequency.value=freq;osc.type='sine';
   const t=ctx.currentTime+delay;
-  g.gain.setValueAtTime(0,t);
-  g.gain.linearRampToValueAtTime(vol,t+0.01);
-  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-  osc.start(t); osc.stop(t+dur+0.05);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.015);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  osc.start(t);osc.stop(t+dur+.05);
 }
-function doneSound() { beep(523,.15,.5,0); beep(659,.15,.5,.18); beep(784,.25,.5,.36); }
-function tickSound() { beep(440,.06,.22); }
 
-// ── State ──
-let photos=[], photoIndex=0;
-let totalSeconds=0, remainingSeconds=0;
-let timerInterval=null, photoInterval=null, clockInterval=null;
-let isPaused=false, soundMode='end-only';
-let currentSlot='a', usedIndices=[];
-let appMode='timer', clockModeActive=false;
-let timerColorOverride=null;
+const SOUNDS={
+  chime:()=>{beep(523,.18,.5,0);beep(659,.18,.5,.22);beep(784,.28,.5,.44)},
+  beep:()=>{for(let i=0;i<3;i++)beep(880,.12,.45,i*.25)},
+  bell:()=>{beep(440,.06,.3,0);beep(880,.4,.4,.05);beep(440,.06,.2,.55)},
+  none:()=>{}
+};
+function playAlarmSound(){(SOUNDS[soundMode]||SOUNDS.chime)()}
+function tickSound(){beep(440,.06,.2)}
 
-// ── File input ──
-const fileInput=document.getElementById('file-input');
-const dropZone =document.getElementById('drop-zone');
-dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag'); });
+// ══ STATE ══
+let photos=[],currentSlot='a',usedIndices=[],photoInterval=null;
+let appMode='timer';
+let timerInterval=null,clockInterval=null,alarmInterval=null;
+let totalSeconds=0,remainingSeconds=0;
+let isPaused=false,timerColorOverride=null;
+let hourFormat='24',showSeconds=true,countdownSoundOn=false;
+let soundMode='chime';
+let clockViewActive=false; // toggle in timer mode
+
+// Pomodoro
+let pomoPhase='focus',pomoRound=1,pomoTotal=4,pomoFocusSec=25*60,pomoBreakSec=5*60;
+
+// Alarm
+let alarmTarget=null,alarmSubVisible=true;
+
+// PiP
+let pipWindow=null,pipTimerEl=null,pipPhotoEl=null,pipDimEl=null;
+let pipMode='both',pipTrans='none',pipDimVal=.45;
+
+// ══ SETUP: mode toggle ══
+document.getElementById('mode-seg').querySelectorAll('.btn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.getElementById('mode-seg').querySelectorAll('.btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); appMode=b.dataset.v;
+    document.getElementById('f-timer').style.display    =appMode==='timer'?'':'none';
+    document.getElementById('f-pomo').style.display     =appMode==='pomodoro'?'':'none';
+    document.getElementById('f-alarm').style.display    =appMode==='alarm'?'':'none';
+    document.getElementById('f-alarm-sub').style.display=appMode==='alarm'?'':'none';
+    document.getElementById('f-countdown-sound').style.display=(appMode==='alarm')?'none':'';
+  });
+});
+
+// generic seg helper
+function bindSeg(id,cb){
+  const seg=document.getElementById(id);if(!seg)return;
+  seg.querySelectorAll('.btn').forEach(b=>{
+    b.addEventListener('click',()=>{seg.querySelectorAll('.btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');cb(b.dataset.v)});
+  });
+}
+bindSeg('hour-seg',v=>{hourFormat=v;if(v==='12')document.getElementById('hour12-toggle').checked=true;else document.getElementById('hour12-toggle').checked=false});
+bindSeg('sec-seg',v=>{showSeconds=v==='1';document.getElementById('show-seconds-toggle').checked=showSeconds});
+bindSeg('alarm-sub-seg',v=>{alarmSubVisible=v==='1';document.getElementById('alarm-sub-toggle').checked=alarmSubVisible;syncAlarmSub()});
+bindSeg('sound-seg',v=>{soundMode=v;syncSoundSegLive()});
+bindSeg('sound-seg-live',v=>{soundMode=v;syncSoundSeg()});
+bindSeg('countdown-seg',v=>{countdownSoundOn=v==='1';document.getElementById('countdown-sound-toggle').checked=countdownSoundOn});
+
+function syncSoundSeg(){document.getElementById('sound-seg').querySelectorAll('.btn').forEach(b=>{b.classList.toggle('active',b.dataset.v===soundMode)})}
+function syncSoundSegLive(){document.getElementById('sound-seg-live').querySelectorAll('.btn').forEach(b=>{b.classList.toggle('active',b.dataset.v===soundMode)})}
+
+// file input
+const dropZone=document.getElementById('drop-zone');
+document.getElementById('file-input').addEventListener('change',e=>loadFiles([...e.target.files]));
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag')});
 dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
-dropZone.addEventListener('drop', e=>{ e.preventDefault(); dropZone.classList.remove('drag'); loadFiles([...e.dataTransfer.files]); });
-fileInput.addEventListener('change',()=>loadFiles([...fileInput.files]));
-
-function loadFiles(files) {
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');loadFiles([...e.dataTransfer.files])});
+function loadFiles(files){
   const imgs=files.filter(f=>f.type.startsWith('image/'));
-  if (!imgs.length) return;
+  if(!imgs.length)return;
   photos=imgs.map(f=>URL.createObjectURL(f));
-  document.getElementById('file-count').textContent=`${photos.length} 枚の写真を読み込みました`;
+  document.getElementById('file-count').textContent=photos.length+' 枚読み込みました';
 }
 
-// ── Mode seg ──
-document.getElementById('mode-seg').querySelectorAll('.btn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.getElementById('mode-seg').querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    appMode=btn.dataset.v;
-    document.getElementById('timer-setup-fields').style.display=appMode==='clock'?'none':'';
-    document.getElementById('sound-setup-field').style.display =appMode==='clock'?'none':'';
-  });
-});
-
-// ── Seg buttons ──
-document.querySelectorAll('.seg').forEach(seg=>{
-  seg.querySelectorAll('.btn').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      seg.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      if (seg.id==='sound-seg'||seg.id==='sound-seg-live') soundMode=btn.dataset.v;
-    });
-  });
-});
-
-// ── Start ──
-function startSession() {
-  if (!photos.length) { alert('写真を選んでください。'); return; }
-  if (appMode==='timer') {
-    const h=parseInt(document.getElementById('t-hours').value)||0;
-    const m=parseInt(document.getElementById('t-minutes').value)||0;
-    const s=parseInt(document.getElementById('t-seconds').value)||0;
-    totalSeconds=h*3600+m*60+s;
-    if (totalSeconds<=0) { alert('タイマーの時間を設定してください。'); return; }
-  }
+// ══ START ══
+function startSession(){
+  if(!photos.length){alert('写真を選んでください');return}
   const interval=parseInt(document.getElementById('interval-input').value)||8;
   document.getElementById('interval-live').value=interval;
-  setTransition(document.getElementById('transition-select').value);
-  setDisplayStyle(document.getElementById('display-select').value);
+  setTransition(document.getElementById('trans-select').value);
+  setDisplayStyle(document.getElementById('disp-select').value);
   setPos(document.getElementById('pos-select').value);
+  document.getElementById('trans-live').value=document.getElementById('trans-select').value;
+  document.getElementById('disp-live').value=document.getElementById('disp-select').value;
+  document.getElementById('pos-live').value=document.getElementById('pos-select').value;
 
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('controls').classList.remove('hidden');
-
-  remainingSeconds=totalSeconds;
-  isPaused=false;
-  usedIndices=[];
-  clockModeActive=(appMode==='clock');
-
+  isPaused=false;usedIndices=[];clockViewActive=false;
   syncPauseBtnLabel();
-  updateClockBtn();
   showNextPhoto();
   startPhotoLoop(interval);
 
-  if (clockModeActive) startClockMode();
-  else { updateTimerDisplay(); startCountdown(); }
+  if(appMode==='timer'){
+    const h=parseInt(document.getElementById('t-h').value)||0;
+    const m=parseInt(document.getElementById('t-m').value)||0;
+    const s=parseInt(document.getElementById('t-s').value)||0;
+    totalSeconds=h*3600+m*60+s;
+    if(totalSeconds<=0){alert('時間を設定してください');resetAll();return}
+    remainingSeconds=totalSeconds;
+    document.getElementById('clock-btn').style.display='';
+    updateTimerDisplay();startCountdown();
+
+  }else if(appMode==='pomodoro'){
+    pomoFocusSec=(parseInt(document.getElementById('p-focus').value)||25)*60;
+    pomoBreakSec=(parseInt(document.getElementById('p-break').value)||5)*60;
+    pomoTotal=parseInt(document.getElementById('p-rounds').value)||4;
+    pomoPhase='focus';pomoRound=1;
+    totalSeconds=pomoFocusSec;remainingSeconds=pomoFocusSec;
+    document.getElementById('pomo-skip-btn').style.display='';
+    document.getElementById('panel-alarm-sub-section').style.display='none';
+    updatePomoBadge();updateTimerDisplay();startCountdown();
+
+  }else if(appMode==='clock'){
+    document.getElementById('clock-btn').style.display='none';
+    document.getElementById('panel-alarm-sub-section').style.display='none';
+    startClockMode();
+
+  }else if(appMode==='alarm'){
+    const t=document.getElementById('alarm-time').value||'18:00';
+    alarmTarget=parseAlarmTarget(t);
+    document.getElementById('panel-alarm-sub-section').style.display='';
+    document.getElementById('clock-btn').style.display='none';
+    startAlarmMode();
+  }
 }
 
-// ── Countdown ──
-function startCountdown() {
-  clearInterval(timerInterval); clearInterval(clockInterval);
+// ══ COUNTDOWN ══
+function startCountdown(){
+  clearAll();
   timerInterval=setInterval(()=>{
-    if (isPaused) return;
+    if(isPaused)return;
     remainingSeconds--;
-    updateTimerDisplay();
-    updateProgress();
-    if (soundMode==='countdown'&&remainingSeconds<=10&&remainingSeconds>0) tickSound();
-    if (remainingSeconds<=0) {
-      clearInterval(timerInterval); clearInterval(photoInterval);
-      if (soundMode!=='none') doneSound();
-      document.getElementById('done-overlay').classList.add('show');
+    updateTimerDisplay();updateProgress();
+    if(countdownSoundOn&&remainingSeconds<=10&&remainingSeconds>0)tickSound();
+    if(remainingSeconds<=0){
+      clearInterval(timerInterval);
+      if(appMode==='pomodoro')handlePomoEnd();
+      else{clearInterval(photoInterval);playAlarmSound();showDone('⏱ タイマー終了','集中お疲れさまでした。')}
     }
   },1000);
 }
 
-function updateTimerDisplay() {
+function formatTime(sec){
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  if(h>0) return showSeconds?`${pad(h)}:${pad(m)}:${pad(s)}`:`${pad(h)}:${pad(m)}`;
+  return showSeconds?`${pad(m)}:${pad(s)}`:`${pad(m)}`;
+}
+function pad(n){return String(n).padStart(2,'0')}
+
+function updateTimerDisplay(){
   const d=document.getElementById('timer-display');
-  const h=Math.floor(remainingSeconds/3600);
-  const m=Math.floor((remainingSeconds%3600)/60);
-  const s=remainingSeconds%60;
-  const txt=h>0?`${pad(h)}:${pad(m)}:${pad(s)}`:`${pad(m)}:${pad(s)}`;
-  d.textContent=txt;
-  syncPipTimer(txt);
-  if (!timerColorOverride) {
+  const txt=formatTime(remainingSeconds);
+  d.textContent=txt;syncPipTimer(txt);
+  if(!timerColorOverride){
     d.classList.remove('warning','urgent');
-    if (remainingSeconds<=60) d.classList.add('warning');
-    if (remainingSeconds<=10) d.classList.add('urgent');
+    if(remainingSeconds<=60)d.classList.add('warning');
+    if(remainingSeconds<=10)d.classList.add('urgent');
   }
 }
-
-function pad(n) { return String(n).padStart(2,'0'); }
-
-function updateProgress() {
-  const pct=((totalSeconds-remainingSeconds)/totalSeconds)*100;
-  document.getElementById('progress-fill').style.width=pct+'%';
+function updateProgress(){
+  if(totalSeconds<=0)return;
+  document.getElementById('progress-fill').style.width=((totalSeconds-remainingSeconds)/totalSeconds*100)+'%';
 }
 
-// ── Clock mode ──
-function startClockMode() {
-  clearInterval(timerInterval); clearInterval(clockInterval);
-  renderClock();
-  clockInterval=setInterval(renderClock,1000);
+// ══ POMODORO ══
+function handlePomoEnd(){
+  playAlarmSound();
+  if(pomoPhase==='focus'){
+    pomoPhase='break';totalSeconds=pomoBreakSec;remainingSeconds=pomoBreakSec;
+    updatePomoBadge();updateTimerDisplay();startCountdown();
+  }else{
+    if(pomoRound>=pomoTotal){clearInterval(photoInterval);showDone('🍅 ポモドーロ完了','全セット終了！お疲れさまでした。');return}
+    pomoRound++;pomoPhase='focus';totalSeconds=pomoFocusSec;remainingSeconds=pomoFocusSec;
+    updatePomoBadge();updateTimerDisplay();startCountdown();
+  }
 }
-function renderClock() {
-  const now=new Date();
-  const txt=`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  document.getElementById('timer-display').textContent=txt;
-  syncPipTimer(txt);
-  if (!timerColorOverride) document.getElementById('timer-display').classList.remove('warning','urgent');
+function updatePomoBadge(){
+  const b=document.getElementById('pomo-badge');b.style.display='';
+  b.className='pomo-badge '+(pomoPhase==='focus'?'focus':'break');
+  b.textContent=(pomoPhase==='focus'?'集中':'休憩')+' '+pomoRound+'/'+pomoTotal;
 }
-function toggleClockMode() {
-  clockModeActive=!clockModeActive;
-  if (clockModeActive) startClockMode();
-  else { clearInterval(clockInterval); if (appMode==='timer') { updateTimerDisplay(); startCountdown(); } }
-  updateClockBtn();
+function pomoSkipPhase(){clearInterval(timerInterval);remainingSeconds=0;handlePomoEnd()}
+
+// ══ CLOCK ══
+function startClockMode(){
+  clearAll();renderClock();clockInterval=setInterval(renderClock,1000);
+  document.getElementById('progress-fill').style.width='0%';
+  document.getElementById('alarm-sub').style.display='none';
 }
-function updateClockBtn() {
-  document.getElementById('clock-btn-label').textContent=clockModeActive?'タイマーへ':'時刻表示';
-  document.getElementById('clock-btn').classList.toggle('on',clockModeActive);
+function renderClock(){
+  const now=new Date();let h=now.getHours();const mi=now.getMinutes(),s=now.getSeconds();
+  let txt,ampm='';
+  if(hourFormat==='12'){ampm=h>=12?' PM':' AM';h=h%12||12;txt=showSeconds?`${pad(h)}:${pad(mi)}:${pad(s)}${ampm}`:`${pad(h)}:${pad(mi)}${ampm}`}
+  else{txt=showSeconds?`${pad(h)}:${pad(mi)}:${pad(s)}`:`${pad(h)}:${pad(mi)}`}
+  document.getElementById('timer-display').textContent=txt;syncPipTimer(txt);
+  if(!timerColorOverride)document.getElementById('timer-display').classList.remove('warning','urgent');
 }
 
-// ── Font ──
-function setFont(btn) {
-  document.querySelectorAll('#font-grid .font-btn').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+// ══ ALARM ══
+function parseAlarmTarget(str){
+  const[hh,mm]=(str||'18:00').split(':').map(Number);
+  const t=new Date();t.setHours(hh,mm,0,0);
+  if(t<=new Date())t.setDate(t.getDate()+1);
+  return t;
+}
+function startAlarmMode(){
+  clearAll();renderAlarmClock();
+  alarmInterval=setInterval(()=>{
+    renderAlarmClock();
+    if(alarmTarget&&new Date()>=alarmTarget){
+      clearInterval(alarmInterval);
+      playAlarmSound();setTimeout(playAlarmSound,1000);
+      showDone('🔔 アラーム!','設定した時刻になりました。');
+    }
+  },1000);
+}
+function renderAlarmClock(){
+  const now=new Date();let h=now.getHours();const mi=now.getMinutes(),s=now.getSeconds();
+  let txt,ampm='';
+  if(hourFormat==='12'){ampm=h>=12?' PM':' AM';h=h%12||12;txt=showSeconds?`${pad(h)}:${pad(mi)}:${pad(s)}${ampm}`:`${pad(h)}:${pad(mi)}${ampm}`}
+  else{txt=showSeconds?`${pad(h)}:${pad(mi)}:${pad(s)}`:`${pad(h)}:${pad(mi)}`}
+  document.getElementById('timer-display').textContent=txt;syncPipTimer(txt);
+  // alarm sub
+  syncAlarmSub();
+}
+function syncAlarmSub(){
+  const sub=document.getElementById('alarm-sub');
+  if(!alarmSubVisible||appMode!=='alarm'){sub.style.display='none';return}
+  if(!alarmTarget){sub.style.display='none';return}
+  const diff=Math.max(0,Math.floor((alarmTarget-new Date())/1000));
+  const h=Math.floor(diff/3600),m=Math.floor((diff%3600)/60),s=diff%60;
+  let txt='🔔 あと ';
+  if(h>0)txt+=`${pad(h)}:${pad(m)}:${pad(s)}`;
+  else txt+=showSeconds?`${pad(m)}:${pad(s)}`:`${pad(m)}分`;
+  sub.textContent=txt;sub.style.display='';
+}
+
+// ══ CLOCK VIEW TOGGLE (timer mode) ══
+function toggleClockView(){
+  if(!clockViewActive){
+    clockViewActive=true;startClockMode();
+    document.getElementById('clock-btn-lbl').textContent='タイマーへ';
+    document.getElementById('clock-btn').classList.add('on');
+  }else{
+    clockViewActive=false;clearInterval(clockInterval);
+    updateTimerDisplay();startCountdown();
+    document.getElementById('clock-btn-lbl').textContent='時刻表示';
+    document.getElementById('clock-btn').classList.remove('on');
+  }
+}
+// For clock/alarm mode: button opens timer switch modal
+function handleClockBtn(){}
+
+// ══ SWITCH TO TIMER (from clock mode) ══
+function switchToTimer(){
+  const h=parseInt(document.getElementById('cs-h').value)||0;
+  const m=parseInt(document.getElementById('cs-m').value)||0;
+  const s=parseInt(document.getElementById('cs-s').value)||0;
+  totalSeconds=h*3600+m*60+s;
+  if(totalSeconds<=0){alert('時間を設定してください');return}
+  remainingSeconds=totalSeconds;
+  appMode='timer';clearAll();
+  document.getElementById('pomo-badge').style.display='none';
+  document.getElementById('alarm-sub').style.display='none';
+  document.getElementById('clock-btn').style.display='';
+  closeModal('clock-switch-modal');
+  updateTimerDisplay();startCountdown();
+}
+
+// ══ SETTINGS ══
+function setShowSeconds(v){
+  showSeconds=v;
+  // sync setup seg
+  document.getElementById('sec-seg').querySelectorAll('.btn').forEach(b=>b.classList.toggle('active',b.dataset.v===(v?'1':'0')));
+}
+function setHour12(v){
+  hourFormat=v?'12':'24';
+  document.getElementById('hour-seg').querySelectorAll('.btn').forEach(b=>b.classList.toggle('active',b.dataset.v===(v?'12':'24')));
+}
+function setAlarmSubVisible(v){
+  alarmSubVisible=v;
+  document.getElementById('alarm-sub-seg').querySelectorAll('.btn').forEach(b=>b.classList.toggle('active',b.dataset.v===(v?'1':'0')));
+  syncAlarmSub();
+}
+function setCountdownSound(v){
+  countdownSoundOn=v;
+  document.getElementById('countdown-seg').querySelectorAll('.btn').forEach(b=>b.classList.toggle('active',b.dataset.v===(v?'1':'0')));
+}
+function updateAlarmSubSize(v){
+  document.documentElement.style.setProperty('--alarm-sub-size',v+'rem');
+  document.getElementById('alarm-sub-size-val').textContent=v+'rem';
+}
+function pickAlarmSubSwatch(el){
+  document.querySelectorAll('#alarm-sub-swatches .sw').forEach(s=>s.classList.remove('on'));el.classList.add('on');
+  document.documentElement.style.setProperty('--alarm-sub-color',el.dataset.c);
+  document.getElementById('alarm-sub-picker').value=el.dataset.c;
+}
+function alarmSubColorFromPicker(v){
+  document.querySelectorAll('#alarm-sub-swatches .sw').forEach(s=>s.classList.remove('on'));
+  document.documentElement.style.setProperty('--alarm-sub-color',v);
+}
+
+function setFont(btn){
+  document.querySelectorAll('#font-grid .font-btn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   const d=document.getElementById('timer-display');
   d.classList.remove('font-mono','font-space','font-bebas','font-playfair','font-oswald','font-dm','font-rajdhani');
-  d.classList.add(btn.dataset.font);
-  syncPipFontClass(btn.dataset.font);
+  d.classList.add(btn.dataset.font);syncPipFontClass(btn.dataset.font);
 }
-
-// ── Timer Color ──
-function pickSwatch(el) {
-  document.querySelectorAll('#color-swatches .swatch').forEach(s=>s.classList.remove('on'));
-  el.classList.add('on');
+function pickSwatch(el){
+  document.querySelectorAll('#color-swatches .sw').forEach(s=>s.classList.remove('on'));el.classList.add('on');
   applyTimerColor(el.dataset.c);
   document.getElementById('color-picker').value=el.dataset.c;
   document.getElementById('hex-input').value=el.dataset.c.replace('#','');
 }
-function colorFromPicker(val) {
-  document.querySelectorAll('#color-swatches .swatch').forEach(s=>s.classList.remove('on'));
-  applyTimerColor(val);
-  document.getElementById('hex-input').value=val.replace('#','');
-}
-function colorFromHex(val) {
-  const c=val.replace(/[^0-9a-fA-F]/g,'');
-  if (c.length===6) {
-    const hex='#'+c;
-    document.querySelectorAll('#color-swatches .swatch').forEach(s=>s.classList.remove('on'));
-    applyTimerColor(hex);
-    document.getElementById('color-picker').value=hex;
-  }
-}
-function applyTimerColor(hex) {
-  const d=document.getElementById('timer-display');
-  d.style.color=hex; d.classList.remove('warning','urgent');
-  timerColorOverride=hex;
-  syncPipTimerColor(hex);
-}
+function colorFromPicker(v){document.querySelectorAll('#color-swatches .sw').forEach(s=>s.classList.remove('on'));applyTimerColor(v);document.getElementById('hex-input').value=v.replace('#','')}
+function colorFromHex(v){const c=v.replace(/[^0-9a-fA-F]/g,'');if(c.length===6){document.querySelectorAll('#color-swatches .sw').forEach(s=>s.classList.remove('on'));const h='#'+c;applyTimerColor(h);document.getElementById('color-picker').value=h}}
+function applyTimerColor(hex){const d=document.getElementById('timer-display');d.style.color=hex;d.classList.remove('warning','urgent');timerColorOverride=hex;syncPipTimerColor(hex)}
+function updateFontSize(v){document.documentElement.style.setProperty('--timer-size',v+'rem');document.getElementById('font-size-val').textContent=v+'rem';syncPipFontSize(v)}
+function updateTimerOpacity(v){document.getElementById('timer-display').style.opacity=v;document.getElementById('timer-opacity-val').textContent=Math.round(v*100)+'%'}
+function updateOverlay(v){document.documentElement.style.setProperty('--overlay-opacity',v);document.getElementById('overlay-val').textContent=Math.round(v*100)+'%'}
+function setTint(btn){document.querySelectorAll('#tint-grid .td').forEach(b=>b.classList.remove('on'));btn.classList.add('on');document.documentElement.style.setProperty('--overlay-color',btn.dataset.t)}
+function setTransition(v){const all=['none','fade','dissolve','slide','drift','kenburns','zoomout','flip','blur','glitch'];document.body.classList.remove(...all.map(c=>'t-'+c));document.body.classList.add('t-'+v)}
+function setDisplayStyle(v){document.body.classList.remove('framed');if(v==='framed')document.body.classList.add('framed')}
+function setPos(v){document.body.classList.remove('pos-center','pos-bottom-right','pos-bottom-left','pos-top-right','pos-top-left');document.body.classList.add(v)}
+function updateInterval(v){clearInterval(photoInterval);startPhotoLoop(parseInt(v))}
+function openSettings(){document.getElementById('settings-panel').classList.add('open')}
+function closeSettings(){document.getElementById('settings-panel').classList.remove('open')}
 
-// ── Size / Opacity ──
-function updateFontSize(v) {
-  document.documentElement.style.setProperty('--timer-size',v+'rem');
-  document.getElementById('font-size-val').textContent=v+'rem';
-  syncPipFontSize(v);
+// ══ PHOTOS ══
+function pickNextIndex(){
+  if(usedIndices.length>=photos.length)usedIndices=[];
+  const av=photos.map((_,i)=>i).filter(i=>!usedIndices.includes(i));
+  const idx=av[Math.floor(Math.random()*av.length)];usedIndices.push(idx);return idx;
 }
-function updateTimerOpacity(v) {
-  document.getElementById('timer-display').style.opacity=v;
-  document.getElementById('timer-opacity-val').textContent=Math.round(v*100)+'%';
-}
-
-// ── Overlay ──
-function updateOverlay(v) {
-  document.documentElement.style.setProperty('--overlay-opacity',v);
-  document.getElementById('overlay-val').textContent=Math.round(v*100)+'%';
-}
-function setTint(btn) {
-  document.querySelectorAll('#tint-grid .tint-dot').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
-  document.documentElement.style.setProperty('--overlay-color',btn.dataset.t);
-}
-
-// ── Transitions / Layout ──
-function setTransition(v) { document.body.classList.remove('transition-fade','transition-slide','transition-river'); document.body.classList.add('transition-'+v); }
-function setDisplayStyle(v) { document.body.classList.remove('framed'); if (v==='framed') document.body.classList.add('framed'); }
-function setPos(v) { document.body.classList.remove('pos-center','pos-bottom-right','pos-bottom-left','pos-top-right','pos-top-left'); document.body.classList.add(v); }
-function updateInterval(v) { clearInterval(photoInterval); startPhotoLoop(parseInt(v)); }
-
-// ── Photos ──
-function pickNextIndex() {
-  if (usedIndices.length>=photos.length) usedIndices=[];
-  const avail=photos.map((_,i)=>i).filter(i=>!usedIndices.includes(i));
-  const idx=avail[Math.floor(Math.random()*avail.length)];
-  usedIndices.push(idx); return idx;
-}
-function showNextPhoto() {
-  const idx=pickNextIndex();
-  const next=currentSlot==='a'?'b':'a';
-  const nEl=document.getElementById('slot-'+next);
-  const oEl=document.getElementById('slot-'+currentSlot);
+function showNextPhoto(){
+  if(!photos.length)return;
+  const idx=pickNextIndex();const next=currentSlot==='a'?'b':'a';
+  const nEl=document.getElementById('slot-'+next),oEl=document.getElementById('slot-'+currentSlot);
   nEl.style.backgroundImage=`url("${photos[idx]}")`;
-  nEl.classList.remove('leaving','active'); void nEl.offsetWidth;
-  oEl.classList.remove('active'); oEl.classList.add('leaving');
-  nEl.classList.add('active');
-  setTimeout(()=>oEl.classList.remove('leaving'),1600);
-  currentSlot=next; photoIndex=usedIndices.length;
-  document.getElementById('photo-info').textContent=`${photoIndex} / ${photos.length}`;
+  nEl.classList.remove('leaving','active');void nEl.offsetWidth;
+  oEl.classList.remove('active');oEl.classList.add('leaving');nEl.classList.add('active');
+  setTimeout(()=>oEl.classList.remove('leaving'),2000);
+  currentSlot=next;document.getElementById('photo-info').textContent=usedIndices.length+'/'+photos.length;
   syncPipPhoto(photos[idx]);
 }
-function startPhotoLoop(interval) {
-  clearInterval(photoInterval);
-  photoInterval=setInterval(()=>{ if (!isPaused) showNextPhoto(); },interval*1000);
-}
-function skipPhoto() {
-  showNextPhoto();
-  clearInterval(photoInterval);
-  startPhotoLoop(parseInt(document.getElementById('interval-live').value)||8);
-}
+function startPhotoLoop(interval){clearInterval(photoInterval);photoInterval=setInterval(()=>{if(!isPaused)showNextPhoto()},interval*1000)}
+function skipPhoto(){showNextPhoto();clearInterval(photoInterval);startPhotoLoop(parseInt(document.getElementById('interval-live').value)||8)}
 
-// ── Pause ──
-function togglePause() {
+// ══ PAUSE ══
+function togglePause(){
   isPaused=!isPaused;
   syncPauseBtnLabel();
+  syncPipPauseIcon();
 }
-function syncPauseBtnLabel() {
+function syncPauseBtnLabel(){
   const btn=document.getElementById('pause-btn');
-  btn.querySelector('svg').innerHTML=isPaused
-    ? '<polygon points="2,1 10,6 2,11"/>'  // play triangle
-    : '<rect x="1" y="1" width="3.5" height="10" rx="1"/><rect x="7.5" y="1" width="3.5" height="10" rx="1"/>'; // pause bars
-  btn.childNodes[btn.childNodes.length-1].textContent=isPaused?' 再開':' 一時停止';
+  const svg=btn.querySelector('svg');
+  if(isPaused){svg.innerHTML='<polygon points="1,1 10,6 1,11"/>';btn.lastChild.textContent=' 再開'}
+  else{svg.innerHTML='<rect x="1" y="1" width="3" height="9" rx=".8"/><rect x="7" y="1" width="3" height="9" rx=".8"/>';btn.lastChild.textContent=' 一時停止'}
+}
+function syncPipPauseIcon(){
+  const icon=document.getElementById('pip-pause-icon');if(!icon)return;
+  if(isPaused)icon.innerHTML='<polygon points="4,3 19,11 4,19"/>';
+  else icon.innerHTML='<rect x="3" y="3" width="5" height="16" rx="1.5"/><rect x="14" y="3" width="5" height="16" rx="1.5"/>';
 }
 
-// ── Settings ──
-function openSettings()  { document.getElementById('settings-panel').classList.add('open'); }
-function closeSettings() { document.getElementById('settings-panel').classList.remove('open'); }
+// ══ PiP ══
+async function togglePip(){
+  if(pipWindow&&!pipWindow.closed){closePip();return}
+  if(!window.documentPictureInPicture){alert('Chrome 116以降が必要です');return}
+  try{pipWindow=await window.documentPictureInPicture.requestWindow({width:320,height:230})}
+  catch(e){if(e.name!=='NotAllowedError')alert('PiP失敗: '+e.message);return}
 
-// ── Controls auto-hide ──
-let hideTO;
-document.addEventListener('mousemove',()=>{
-  const c=document.getElementById('controls');
-  c.classList.remove('hidden');
-  clearTimeout(hideTO);
-  if (!document.getElementById('settings-panel').classList.contains('open'))
-    hideTO=setTimeout(()=>c.classList.add('hidden'),3200);
-});
+  const doc=pipWindow.document;
+  const lnk=doc.createElement('link');
+  lnk.rel='stylesheet';lnk.href='https://fonts.googleapis.com/css2?family=Inter:wght@400&family=JetBrains+Mono:wght@400&family=Space+Mono&family=Bebas+Neue&family=Playfair+Display:wght@400&family=Oswald:wght@300&family=DM+Serif+Display&family=Rajdhani:wght@300&display=swap';
+  doc.head.appendChild(lnk);
 
-// ════════════════════════════════════════════
-// ── Picture-in-Picture (Document PiP API) ──
-// Uses the modern Document Picture-in-Picture API (Chrome 116+)
-// Opens a real floating OS window — survives tab switches, doesn't need screen share.
-// Fallback: if not supported, shows an in-page floating widget.
-// ════════════════════════════════════════════
+  const tr=pipTrans==='fade'?'opacity 1.2s ease':pipTrans==='dissolve'?'opacity 1.8s ease':'none';
+  const sty=doc.createElement('style');
+  sty.textContent=`*{box-sizing:border-box;margin:0;padding:0}body{background:#0f0f0f;color:#e2e2e2;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+#pb{position:absolute;inset:0;background-size:cover;background-position:center;transition:${tr};opacity:${pipDimVal}}
+#pd{position:absolute;inset:0;background:rgba(0,0,0,${pipDimVal})}
+#pt{position:relative;z-index:2;font-size:3.8rem;line-height:1;text-shadow:0 2px 10px rgba(0,0,0,.7);transition:color .3s}
+#pl{position:relative;z-index:2;font-size:.56rem;color:rgba(255,255,255,.3);letter-spacing:.1em;text-transform:uppercase;margin-top:.35rem}
+.font-mono{font-family:'JetBrains Mono',monospace!important;letter-spacing:-.02em!important}
+.font-space{font-family:'Space Mono',monospace!important;letter-spacing:-.03em!important}
+.font-bebas{font-family:'Bebas Neue',sans-serif!important;letter-spacing:.06em!important}
+.font-playfair{font-family:'Playfair Display',serif!important}
+.font-oswald{font-family:'Oswald',sans-serif!important;font-weight:300!important;letter-spacing:.09em!important}
+.font-dm{font-family:'DM Serif Display',serif!important}
+.font-rajdhani{font-family:'Rajdhani',sans-serif!important;font-weight:300!important;letter-spacing:.14em!important}`;
+  doc.head.appendChild(sty);
+  doc.body.innerHTML=`<div id="pb"></div><div id="pd"></div><div id="pt" class="font-mono">--:--</div><div id="pl">Photo Flow Timer</div>`;
 
-let pipWindow = null;
+  pipTimerEl=doc.getElementById('pt');
+  pipPhotoEl=doc.getElementById('pb');
+  pipDimEl  =doc.getElementById('pd');
 
-// Refs into the PiP window DOM (updated after open)
-let pipTimerEl = null;
-let pipPhotoEl = null;
-let pipModeEl  = null; // 'timer' | 'photo' | 'both'
-let pipCurrentMode = 'both';
+  // Sync state
+  const mt=document.getElementById('timer-display');
+  pipTimerEl.textContent=mt.textContent;
+  pipTimerEl.style.color=mt.style.color||'#e2e2e2';
+  const fcs=['font-mono','font-space','font-bebas','font-playfair','font-oswald','font-dm','font-rajdhani'];
+  fcs.forEach(fc=>{if(mt.classList.contains(fc)){pipTimerEl.classList.remove(...fcs);pipTimerEl.classList.add(fc)}});
+  const aSlot=document.getElementById('slot-'+currentSlot);
+  if(aSlot.style.backgroundImage)pipPhotoEl.style.backgroundImage=aSlot.style.backgroundImage;
+  applyPipMode();
 
-async function togglePip() {
-  if (pipWindow && !pipWindow.closed) { closePip(); return; }
-
-  // Check Document PiP support
-  if (!window.documentPictureInPicture) {
-    alert('このブラウザはDocument PiPに対応していません。\nChrome 116以降をお使いください。');
-    return;
-  }
-
-  try {
-    pipWindow = await window.documentPictureInPicture.requestWindow({
-      width: 320, height: 220,
-      disallowReturnToOpener: false,
-    });
-  } catch(e) {
-    if (e.name !== 'NotAllowedError') alert('PiP起動失敗: ' + e.message);
-    return;
-  }
-
-  // ── Inject content into PiP window ──
-  const doc = pipWindow.document;
-  doc.title = 'Timer PiP';
-
-  // Copy Google Fonts link
-  const link = doc.createElement('link');
-  link.rel='stylesheet';
-  link.href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400&family=JetBrains+Mono:wght@400&family=Space+Mono&family=Bebas+Neue&family=Playfair+Display:wght@400&family=Oswald:wght@300&family=DM+Serif+Display&family=Rajdhani:wght@300&display=swap';
-  doc.head.appendChild(link);
-
-  // Inject styles
-  const style = doc.createElement('style');
-  style.textContent = `
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#0f0f0f;color:#e8e8e8;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
-    #pip-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0.55;transition:opacity 1s,background-image 1.5s;}
-    #pip-dim{position:absolute;inset:0;background:rgba(0,0,0,0.45);}
-    #pip-timer{position:relative;z-index:2;font-size:4rem;line-height:1;text-shadow:0 2px 10px rgba(0,0,0,0.7);transition:color 0.3s;}
-    #pip-label{position:relative;z-index:2;font-size:0.62rem;color:rgba(255,255,255,0.38);letter-spacing:0.1em;text-transform:uppercase;margin-top:0.4rem;}
-    #pip-controls{position:absolute;bottom:0;left:0;right:0;z-index:3;display:flex;gap:0.4rem;justify-content:center;padding:0.55rem;background:rgba(0,0,0,0.5);}
-    .pb{background:rgba(255,255,255,0.1);border:0.5px solid rgba(255,255,255,0.14);color:#e8e8e8;font-size:0.7rem;padding:0.28rem 0.6rem;border-radius:5px;cursor:pointer;font-family:'Inter',sans-serif;}
-    .pb:hover{background:rgba(255,255,255,0.2);}
-    .pb.on{background:rgba(212,197,169,0.2);border-color:rgba(212,197,169,0.4);color:#d4c5a9;}
-    .font-mono{font-family:'JetBrains Mono',monospace!important;letter-spacing:-0.02em!important;}
-    .font-space{font-family:'Space Mono',monospace!important;letter-spacing:-0.03em!important;}
-    .font-bebas{font-family:'Bebas Neue',sans-serif!important;letter-spacing:0.06em!important;}
-    .font-playfair{font-family:'Playfair Display',serif!important;}
-    .font-oswald{font-family:'Oswald',sans-serif!important;font-weight:300!important;letter-spacing:0.09em!important;}
-    .font-dm{font-family:'DM Serif Display',serif!important;}
-    .font-rajdhani{font-family:'Rajdhani',sans-serif!important;font-weight:300!important;letter-spacing:0.14em!important;}
-  `;
-  doc.head.appendChild(style);
-
-  doc.body.innerHTML = `
-    <div id="pip-bg"></div>
-    <div id="pip-dim"></div>
-    <div id="pip-timer" class="font-mono">--:--</div>
-    <div id="pip-label">Photo Flow Timer</div>
-    <div id="pip-controls">
-      <button class="pb" id="pip-pause-btn" onclick="window.opener && window.opener.togglePause && window.opener.togglePause()">⏸ 一時停止</button>
-      <button class="pb" id="pip-next-btn" onclick="window.opener && window.opener.skipPhoto && window.opener.skipPhoto()">⏭ 次の写真</button>
-      <button class="pb on" id="pip-mode-btn" onclick="pipCycleMode()">🖼＋⏱</button>
-    </div>
-  `;
-
-  pipTimerEl = doc.getElementById('pip-timer');
-  pipPhotoEl = doc.getElementById('pip-bg');
-  pipModeEl  = doc.getElementById('pip-mode-btn');
-  pipCurrentMode = 'both';
-
-  // Inject cycle mode function into pip window
-  pipWindow.pipCycleMode = function() {
-    const modes = ['both','timer','photo'];
-    const labels = { both:'🖼＋⏱', timer:'⏱ のみ', photo:'🖼 のみ' };
-    const idx = modes.indexOf(pipCurrentMode);
-    pipCurrentMode = modes[(idx+1)%3];
-    pipModeEl.textContent = labels[pipCurrentMode];
-    const bg = pipWindow.document.getElementById('pip-bg');
-    const tmr = pipWindow.document.getElementById('pip-timer');
-    bg.style.opacity  = pipCurrentMode==='timer' ? '0' : '0.55';
-    tmr.style.display = pipCurrentMode==='photo' ? 'none' : '';
-  };
-
-  // Sync current state immediately
-  const mainTimer = document.getElementById('timer-display');
-  pipTimerEl.textContent = mainTimer.textContent;
-  pipTimerEl.style.color = mainTimer.style.color || '#e8e8e8';
-  pipTimerEl.style.fontSize = getComputedStyle(document.documentElement).getPropertyValue('--timer-size');
-
-  // Copy current photo
-  const activeSlot = document.getElementById('slot-' + currentSlot);
-  if (activeSlot.style.backgroundImage) pipPhotoEl.style.backgroundImage = activeSlot.style.backgroundImage;
-
-  // Copy current font class
-  const fontClasses = ['font-mono','font-space','font-bebas','font-playfair','font-oswald','font-dm','font-rajdhani'];
-  fontClasses.forEach(fc => { if (mainTimer.classList.contains(fc)) { pipTimerEl.classList.remove(...fontClasses); pipTimerEl.classList.add(fc); } });
-
-  pipWindow.addEventListener('pagehide', () => { pipWindow = null; pipTimerEl = null; pipPhotoEl = null; document.getElementById('pip-btn').classList.remove('on'); });
+  // Show PiP overlay on main tab
+  document.getElementById('pip-overlay').classList.add('show');
+  document.getElementById('timer-display').style.display='none';
+  document.getElementById('photo-canvas').style.opacity='0';
+  document.getElementById('photo-info').style.display='none';
+  document.getElementById('pomo-badge').style.display='none';
   document.getElementById('pip-btn').classList.add('on');
+
+  pipWindow.addEventListener('pagehide',()=>{restoreFromPip();});
 }
 
-function closePip() {
-  if (pipWindow && !pipWindow.closed) pipWindow.close();
-  pipWindow=null; pipTimerEl=null; pipPhotoEl=null;
+function restoreFromPip(){
+  pipWindow=null;pipTimerEl=null;pipPhotoEl=null;pipDimEl=null;
+  document.getElementById('pip-overlay').classList.remove('show');
+  document.getElementById('timer-display').style.display='';
+  document.getElementById('photo-canvas').style.opacity='';
+  document.getElementById('photo-info').style.display='';
+  if(appMode==='pomodoro')document.getElementById('pomo-badge').style.display='';
   document.getElementById('pip-btn').classList.remove('on');
 }
+function closePip(){if(pipWindow&&!pipWindow.closed)pipWindow.close();restoreFromPip()}
 
-// Sync helpers — called whenever state changes
-function syncPipTimer(txt) {
-  if (!pipTimerEl) return;
-  pipTimerEl.textContent=txt;
+function setPipMode(v){
+  pipMode=v;applyPipMode();
 }
-function syncPipTimerColor(hex) {
-  if (!pipTimerEl) return;
-  pipTimerEl.style.color=hex;
+function applyPipMode(){
+  if(!pipTimerEl||!pipPhotoEl)return;
+  pipPhotoEl.style.opacity=pipMode==='timer'?'0':String(pipDimVal);
+  if(pipDimEl)pipDimEl.style.background=pipMode==='timer'?'rgba(0,0,0,0)':`rgba(0,0,0,${pipDimVal})`;
+  pipTimerEl.style.display=pipMode==='photo'?'none':'';
 }
-function syncPipFontClass(cls) {
-  if (!pipTimerEl) return;
-  ['font-mono','font-space','font-bebas','font-playfair','font-oswald','font-dm','font-rajdhani'].forEach(c=>pipTimerEl.classList.remove(c));
-  pipTimerEl.classList.add(cls);
+function setPipTrans(v){
+  pipTrans=v;
+  if(!pipPhotoEl)return;
+  const tr=v==='fade'?'opacity 1.2s ease':v==='dissolve'?'opacity 1.8s ease':'none';
+  pipPhotoEl.style.transition=tr;
 }
-function syncPipFontSize(v) {
-  if (!pipTimerEl) return;
-  pipTimerEl.style.fontSize = Math.min(parseFloat(v)*0.6, 5) + 'rem';
-}
-function syncPipPhoto(url) {
-  if (!pipPhotoEl) return;
-  pipPhotoEl.style.backgroundImage=`url("${url}")`;
+function setPipDim(v){
+  pipDimVal=parseFloat(v);
+  if(!pipPhotoEl)return;
+  if(pipMode!=='timer'){pipPhotoEl.style.opacity=String(pipDimVal)}
+  if(pipDimEl&&pipMode!=='timer')pipDimEl.style.background=`rgba(0,0,0,${pipDimVal})`;
 }
 
-// ── Done / Reset ──
-function closeDone() { document.getElementById('done-overlay').classList.remove('show'); }
+// pip sync
+function syncPipTimer(txt){if(pipTimerEl)pipTimerEl.textContent=txt}
+function syncPipTimerColor(hex){if(pipTimerEl)pipTimerEl.style.color=hex}
+function syncPipFontClass(cls){if(!pipTimerEl)return;['font-mono','font-space','font-bebas','font-playfair','font-oswald','font-dm','font-rajdhani'].forEach(c=>pipTimerEl.classList.remove(c));pipTimerEl.classList.add(cls)}
+function syncPipFontSize(v){if(pipTimerEl)pipTimerEl.style.fontSize=Math.min(parseFloat(v)*.65,5)+'rem'}
+function syncPipPhoto(url){
+  if(!pipPhotoEl||pipMode==='timer')return;
+  if(pipTrans!=='none'){const prev=pipPhotoEl.style.opacity;pipPhotoEl.style.opacity='0';setTimeout(()=>{pipPhotoEl.style.backgroundImage=`url("${url}")`;pipPhotoEl.style.opacity=pipMode==='timer'?'0':String(pipDimVal)},700)}
+  else{pipPhotoEl.style.backgroundImage=`url("${url}")`}
+}
 
-function resetAll() {
-  clearInterval(timerInterval); clearInterval(photoInterval); clearInterval(clockInterval);
-  closePip();
+// ══ MISC ══
+function clearAll(){clearInterval(timerInterval);clearInterval(clockInterval);clearInterval(alarmInterval)}
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function showDone(t,s){document.getElementById('done-title').textContent=t;document.getElementById('done-sub').textContent=s;document.getElementById('done-overlay').classList.add('show')}
+function closeDone(){document.getElementById('done-overlay').classList.remove('show')}
+
+function resetAll(){
+  clearAll();clearInterval(photoInterval);closePip();
   document.getElementById('done-overlay').classList.remove('show');
   document.getElementById('controls').classList.add('hidden');
+  document.getElementById('pomo-badge').style.display='none';
+  document.getElementById('pomo-skip-btn').style.display='none';
+  document.getElementById('clock-btn').style.display='none';
+  document.getElementById('panel-alarm-sub-section').style.display='none';
+  document.getElementById('alarm-sub').style.display='none';
   document.getElementById('setup').classList.remove('hidden');
-  ['slot-a','slot-b'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.style.backgroundImage=''; el.className='photo-slot';
-  });
+  ['slot-a','slot-b'].forEach(id=>{const el=document.getElementById(id);el.style.backgroundImage='';el.className='photo-slot'});
+  document.getElementById('photo-canvas').style.opacity='';
   document.getElementById('progress-fill').style.width='0%';
   const d=document.getElementById('timer-display');
-  d.textContent='00:00'; d.classList.remove('warning','urgent');
-  isPaused=false; clockModeActive=false; remainingSeconds=0;
-  syncPauseBtnLabel();
-  updateClockBtn();
+  d.textContent='00:00';d.classList.remove('warning','urgent');d.style.display='';
+  isPaused=false;clockViewActive=false;remainingSeconds=0;
+  pomoPhase='focus';pomoRound=1;syncPauseBtnLabel();
 }
+
+let hideTO;
+document.addEventListener('mousemove',()=>{
+  const c=document.getElementById('controls');c.classList.remove('hidden');clearTimeout(hideTO);
+  if(!document.getElementById('settings-panel').classList.contains('open')&&!document.getElementById('pip-overlay').classList.contains('show'))
+    hideTO=setTimeout(()=>c.classList.add('hidden'),3500);
+});
 </script>
 </body>
 </html>
