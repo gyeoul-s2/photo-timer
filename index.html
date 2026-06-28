@@ -11,19 +11,26 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0f0f0f;--surface:#181818;--surface2:#222;
-  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
-  --text:#e2e2e2;--muted:#666;--accent:#c8b99a;
+  --bg:#0f0f0f;--surface:#1e1e1e;--surface2:#2a2a2a;
+  --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
+  --text:#ebebeb;--muted:#999;--accent:#c8b99a;
   --font-ui:'Inter',sans-serif;
   --timer-size:5rem;--overlay-color:0,0,0;--overlay-opacity:0.35;
-  --alarm-sub-size:1.1rem;--alarm-sub-color:#aaaaaa;
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font-ui);min-height:100vh;overflow:hidden;user-select:none}
 
 /* ── PHOTO CANVAS ── */
 #photo-canvas{position:fixed;inset:0;z-index:0;transition:opacity .6s}
 .photo-slot{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0}
-body.framed .photo-slot{inset:36px;border-radius:8px}
+
+/* framed: contain (縦横比保持) */
+body.framed .photo-slot{
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center center;
+  background-color:#000;
+  inset:32px;border-radius:6px;
+}
 
 /* transitions */
 body.t-none     .photo-slot.active{opacity:1}
@@ -77,21 +84,6 @@ body.pos-bottom-left  #timer-display{bottom:2rem;left:2.5rem}
 body.pos-top-right    #timer-display{top:2rem;right:2.5rem}
 body.pos-top-left     #timer-display{top:2rem;left:2.5rem}
 
-/* ── ALARM SUBTITLE (countdown/remaining) ── */
-#alarm-sub{
-  position:fixed;z-index:10;pointer-events:none;
-  font-size:var(--alarm-sub-size);color:var(--alarm-sub-color);
-  font-family:'JetBrains Mono',monospace;letter-spacing:.06em;
-  display:none;
-  text-shadow:0 1px 8px rgba(0,0,0,.6);
-}
-/* follows timer position */
-body.pos-center       #alarm-sub{top:calc(50% + var(--timer-size) * 1.1);left:50%;transform:translateX(-50%);text-align:center}
-body.pos-bottom-right #alarm-sub{bottom:calc(2rem - 1.6rem);right:2.5rem}
-body.pos-bottom-left  #alarm-sub{bottom:calc(2rem - 1.6rem);left:2.5rem}
-body.pos-top-right    #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);right:2.5rem}
-body.pos-top-left     #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);left:2.5rem}
-
 /* ── POMO BADGE ── */
 #pomo-badge{position:fixed;top:1rem;right:1.5rem;z-index:10;font-size:.66rem;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;letter-spacing:.06em;pointer-events:none;display:none}
 #pomo-badge.focus{color:rgba(200,185,154,.65)}
@@ -107,8 +99,8 @@ body.pos-top-left     #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);left:2
 /* ── PiP OVERLAY on main tab ── */
 #pip-overlay{
   display:none;position:fixed;inset:0;z-index:8;
-  background:#0d0d0d;
-  flex-direction:column;align-items:center;justify-content:center;gap:2.8rem;
+  background:#111;
+  flex-direction:column;align-items:center;justify-content:center;gap:2.4rem;
 }
 #pip-overlay.show{display:flex}
 
@@ -117,39 +109,44 @@ body.pos-top-left     #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);left:2
 
 /* PiP: large icon buttons */
 .pip-icon-btn{
-  background:rgba(255,255,255,.06);
-  border:.5px solid rgba(255,255,255,.1);
-  color:rgba(255,255,255,.55);
-  cursor:pointer;padding:.65rem;border-radius:10px;
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.75);
+  cursor:pointer;padding:.7rem;border-radius:10px;
   transition:color .15s,background .15s,border-color .15s;
   display:flex;align-items:center;justify-content:center;
 }
-.pip-icon-btn:hover{color:#e2e2e2;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18)}
-.pip-icon-btn.close-btn{border-color:rgba(200,185,154,.2);color:rgba(200,185,154,.45)}
-.pip-icon-btn.close-btn:hover{color:var(--accent);background:rgba(200,185,154,.1);border-color:rgba(200,185,154,.35)}
+.pip-icon-btn:hover{color:#fff;background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.pip-icon-btn.close-btn{border-color:rgba(200,185,154,.3);color:rgba(200,185,154,.7)}
+.pip-icon-btn.close-btn:hover{color:var(--accent);background:rgba(200,185,154,.12);border-color:rgba(200,185,154,.5)}
 
 /* PiP settings card */
 #pip-settings-card{
-  background:rgba(255,255,255,.04);
-  border:.5px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.13);
   border-radius:12px;
-  padding:1.1rem 1.4rem;
-  display:flex;flex-direction:column;gap:.85rem;
+  padding:1.2rem 1.5rem;
+  display:flex;flex-direction:column;gap:1rem;
   width:280px;
+  overflow:visible;
 }
-.pip-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
-.pip-row-lbl{font-size:.68rem;color:rgba(255,255,255,.5);letter-spacing:.04em;white-space:nowrap}
+.pip-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:28px}
+.pip-row-lbl{font-size:.72rem;color:#bbb;letter-spacing:.03em;white-space:nowrap;flex-shrink:0}
 .pip-row select{
-  background:rgba(255,255,255,.08);
-  border:.5px solid rgba(255,255,255,.12);
-  color:#e2e2e2;font-family:var(--font-ui);font-size:.7rem;
-  padding:.26rem .5rem;border-radius:6px;outline:none;flex-shrink:0;
+  background:#2a2a2a;
+  border:1px solid rgba(255,255,255,.22);
+  color:#ebebeb;
+  font-family:var(--font-ui);font-size:.72rem;
+  padding:.3rem .5rem;border-radius:6px;outline:none;
+  flex-shrink:0;max-width:140px;
+  color-scheme:dark;
 }
-.pip-row select:focus{border-color:rgba(200,185,154,.4)}
-.pip-row input[type="range"]{accent-color:var(--accent);width:80px;flex-shrink:0}
-.pip-row-divider{border:none;border-top:.5px solid rgba(255,255,255,.07);margin:0}
+.pip-row select option{background:#2a2a2a;color:#ebebeb}
+.pip-row select:focus{border-color:rgba(200,185,154,.5)}
+.pip-row input[type="range"]{accent-color:var(--accent);width:90px;flex-shrink:0}
+.pip-row-divider{border:none;border-top:1px solid rgba(255,255,255,.09);margin:.1rem 0}
 
-#pip-hint{font-size:.58rem;color:rgba(255,255,255,.18);letter-spacing:.06em;text-align:center}
+#pip-hint{font-size:.7rem;color:#bbb;letter-spacing:.05em;text-align:center}
 
 /* ── CONTROLS ── */
 #controls{position:fixed;bottom:0;left:0;right:0;z-index:20;padding:.9rem 1.4rem 1.5rem;display:flex;align-items:flex-end;justify-content:space-between;gap:.6rem;transition:opacity .4s,transform .4s}
@@ -197,7 +194,7 @@ body.pos-top-left     #alarm-sub{top:calc(2rem + var(--timer-size) * 1.1);left:2
 .setup-section:first-child{border-top:none;padding-top:.2rem}
 
 .field{display:flex;flex-direction:column;gap:.45rem}
-.lbl{font-size:.65rem;color:var(--muted);letter-spacing:.07em;text-transform:uppercase}
+.lbl{font-size:.68rem;color:#aaa;letter-spacing:.07em;text-transform:uppercase}
 
 input[type="file"]{display:none}
 .file-drop{border:1px dashed rgba(255,255,255,.11);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;font-size:.8rem;color:var(--muted);transition:border-color .2s,background .2s}
@@ -227,10 +224,10 @@ input[type="time"]{color-scheme:dark}
 #settings-panel{position:fixed;top:0;right:0;bottom:0;width:288px;z-index:50;background:rgba(11,11,11,.98);border-left:.5px solid var(--border);padding:0;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);overflow:hidden}
 #settings-panel.open{transform:translateX(0)}
 #settings-scroll{flex:1;overflow-y:auto;padding:1.3rem 1.3rem 2rem}
-.panel-hd{font-size:.65rem;font-weight:600;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
-.panel-section{display:flex;flex-direction:column;gap:.75rem;padding:1rem 0;border-top:.5px solid var(--border)}
+.panel-hd{font-size:.65rem;font-weight:600;color:#aaa;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.9rem}
+.panel-section{display:flex;flex-direction:column;gap:.75rem;padding:1rem 0;border-top:.5px solid rgba(255,255,255,.1)}
 .panel-section:first-child{border-top:none;padding-top:0}
-.ps-title{font-size:.6rem;color:rgba(150,140,125,.8);letter-spacing:.1em;text-transform:uppercase}
+.ps-title{font-size:.62rem;color:#b0a898;letter-spacing:.1em;text-transform:uppercase}
 
 .range-row{display:flex;gap:.45rem;align-items:center}
 .range-row input[type="range"]{flex:1;accent-color:var(--accent)}
@@ -262,7 +259,7 @@ input[type="time"]{color-scheme:dark}
 
 /* toggle switch */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
-.toggle-row .tgl-lbl{font-size:.75rem;color:var(--text)}
+.toggle-row .tgl-lbl{font-size:.78rem;color:#ccc}
 .toggle{position:relative;width:32px;height:18px;flex-shrink:0}
 .toggle input{opacity:0;width:0;height:0;position:absolute}
 .toggle-slider{position:absolute;inset:0;background:rgba(255,255,255,.12);border-radius:9px;transition:background .2s;cursor:pointer}
@@ -286,7 +283,7 @@ hr{border:none;border-top:.5px solid var(--border)}
 #done-overlay p{font-size:.8rem;color:var(--muted)}
 </style>
 </head>
-<body class="pos-bottom-right t-fade">
+<body class="pos-center t-fade">
 
 <!-- ══ SETUP ══ -->
 <div id="setup">
@@ -399,11 +396,11 @@ hr{border:none;border-top:.5px solid var(--border)}
       <div class="field">
         <div class="lbl">タイマー位置</div>
         <select id="pos-select">
+          <option value="pos-center" selected>中央</option>
           <option value="pos-bottom-right">右下</option>
           <option value="pos-bottom-left">左下</option>
           <option value="pos-top-right">右上</option>
           <option value="pos-top-left">左上</option>
-          <option value="pos-center">中央</option>
         </select>
       </div>
     </div>
@@ -640,8 +637,8 @@ hr{border:none;border-top:.5px solid var(--border)}
     <div class="field">
       <div class="lbl">タイマー位置</div>
       <select id="pos-live" onchange="setPos(this.value)">
-        <option value="pos-bottom-right">右下</option><option value="pos-bottom-left">左下</option>
-        <option value="pos-top-right">右上</option><option value="pos-top-left">左上</option><option value="pos-center">中央</option>
+        <option value="pos-center" selected>中央</option><option value="pos-bottom-right">右下</option><option value="pos-bottom-left">左下</option>
+        <option value="pos-top-right">右上</option><option value="pos-top-left">左上</option>
       </select>
     </div>
   </div>
@@ -819,12 +816,10 @@ function startSession(){
     pomoPhase='focus';pomoRound=1;
     totalSeconds=pomoFocusSec;remainingSeconds=pomoFocusSec;
     document.getElementById('pomo-skip-btn').style.display='';
-    document.getElementById('panel-alarm-sub-section').style.display='none';
     updatePomoBadge();updateTimerDisplay();startCountdown();
 
   }else if(appMode==='clock'){
     document.getElementById('clock-btn').style.display='none';
-    document.getElementById('panel-alarm-sub-section').style.display='none';
     startClockMode();
 
   }else if(appMode==='alarm'){
